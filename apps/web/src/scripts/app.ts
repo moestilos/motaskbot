@@ -188,8 +188,10 @@ function openChatModal() {
     `<option value="">— None (fresh session) —</option>` +
     sessions
       .map((s) => {
-        const preview = (s.preview ?? '').slice(0, 60).replace(/\n/g, ' ');
-        return `<option value="${s.session_id}" data-dir="${escapeAttr(s.project_dir)}">${escapeHtml(s.project_label)} · ${s.message_count}msg · ${preview}${preview.length >= 60 ? '…' : ''}</option>`;
+        const preview = (s.preview ?? '').slice(0, 70).replace(/\s+/g, ' ').trim();
+        const when = relDate(s.last_activity_at);
+        const title = preview || '(no preview)';
+        return `<option value="${s.session_id}" data-dir="${escapeAttr(s.project_dir)}" data-label="${escapeAttr(s.project_label)}">${escapeHtml(s.project_label)}  —  ${escapeHtml(title)}${preview.length >= 70 ? '…' : ''}  ·  ${when}</option>`;
       })
       .join('');
   ($('chat-name') as HTMLInputElement).value = '';
@@ -201,11 +203,21 @@ function openChatModal() {
 function onSessionPick(e: Event) {
   const opt = (e.target as HTMLSelectElement).selectedOptions[0];
   const dir = opt?.dataset.dir ?? '';
+  const label = opt?.dataset.label ?? '';
   ($('chat-working-dir') as HTMLInputElement).value = dir;
-  if (!($('chat-name') as HTMLInputElement).value && opt?.textContent) {
-    const label = opt.textContent.split(' · ')[0];
+  if (!($('chat-name') as HTMLInputElement).value && label) {
     ($('chat-name') as HTMLInputElement).value = label;
   }
+}
+
+function relDate(iso: string) {
+  const d = new Date(iso).getTime();
+  const diff = Date.now() - d;
+  const day = 86_400_000;
+  if (diff < 3_600_000) return `${Math.max(1, Math.floor(diff / 60_000))}m ago`;
+  if (diff < day) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 async function createChat() {
@@ -331,7 +343,7 @@ function subscribeRealtime() {
 
 function applyChange<T extends { id: string }>(arr: T[], payload: any) {
   if (payload.eventType === 'INSERT') {
-    arr.unshift(payload.new);
+    if (!arr.find((x) => x.id === payload.new.id)) arr.unshift(payload.new);
   } else if (payload.eventType === 'UPDATE') {
     const i = arr.findIndex((x) => x.id === payload.new.id);
     if (i >= 0) arr[i] = payload.new;

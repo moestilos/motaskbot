@@ -29,7 +29,12 @@ function decodeProjectFolder(name: string): string {
 }
 
 function labelFromPath(path: string): string {
-  const parts = path.split(/[\\/]/).filter(Boolean);
+  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+  // If inside a .claude/worktrees/* subtree, use repo name (folder before .claude)
+  const claudeIdx = parts.indexOf('.claude');
+  if (claudeIdx > 0 && parts[claudeIdx + 1] === 'worktrees') {
+    return parts[claudeIdx - 1];
+  }
   return parts[parts.length - 1] ?? path;
 }
 
