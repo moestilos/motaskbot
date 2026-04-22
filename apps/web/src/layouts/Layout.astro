@@ -1,0 +1,28 @@
+---
+import '../styles/global.css';
+
+interface Props { title?: string }
+const { title = 'MoTaskBot' } = Astro.props;
+
+const url = import.meta.env.PUBLIC_SUPABASE_URL;
+const anon = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+if (!url || !anon) {
+  throw new Error('Missing PUBLIC_SUPABASE_URL / PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env.');
+}
+---
+<!doctype html>
+<html lang="en" class="dark h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <script is:inline define:vars={{ url, anon }}>
+      window.__MOTASKBOT_ENV__ = { url, anon };
+    </script>
+  </head>
+  <body class="h-full">
+    <slot />
+  </body>
+</html>

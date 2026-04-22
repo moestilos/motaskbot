@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply bg-bg text-fg font-sans antialiased h-full;
+  }
+  body {
+    @apply min-h-screen;
+  }
+  * {
+    @apply border-border;
+  }
+  ::selection {
+    @apply bg-accent/30 text-fg;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #34343a; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors;
+  }
+  .btn-primary { @apply btn bg-accent hover:bg-accent-hover text-white; }
+  .btn-ghost { @apply btn text-fg-muted hover:text-fg hover:bg-bg-elevated; }
+  .input {
+    @apply w-full px-3 py-2 rounded-md bg-bg-elevated border border-border text-fg placeholder:text-fg-dim focus:outline-none focus:border-accent transition-colors text-sm;
+  }
+  .textarea { @apply input resize-y min-h-[96px] font-mono; }
+  .card { @apply bg-bg-raised border border-border rounded-lg; }
+  .status-dot { @apply inline-block w-2 h-2 rounded-full; }
+  .status-pending   { @apply bg-status-pending; }
+  .status-running   { @apply bg-status-running animate-pulse; }
+  .status-completed { @apply bg-status-completed; }
+  .status-failed    { @apply bg-status-failed; }
+}

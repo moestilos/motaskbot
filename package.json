@@ -1,0 +1,21 @@
+{
+  "name": "motaskbot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MoTaskBot — AI task orchestrator with Supabase + Astro + Claude worker",
+  "workspaces": [
+    "apps/*",
+    "shared"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@motaskbot/web",
+    "dev:worker": "npm run dev --workspace=@motaskbot/worker",
+    "build:web": "npm run build --workspace=@motaskbot/web",
+    "build:shared": "npm run build --workspace=@motaskbot/shared",
+    "worker": "npm run start --workspace=@motaskbot/worker",
+    "e2e": "node scripts/e2e-test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

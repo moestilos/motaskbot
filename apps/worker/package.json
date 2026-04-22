@@ -1,0 +1,22 @@
+{
+  "name": "@motaskbot/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "tsx watch src/worker.ts",
+    "start": "tsx src/worker.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@motaskbot/shared": "*",
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0"
+  }
+}
