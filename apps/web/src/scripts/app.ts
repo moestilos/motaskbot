@@ -399,46 +399,141 @@ async function sendChatMessage() {
   }
 }
 
-// ---------- Usage view ----------
+// ---------- Usage view (real-time, rolling windows) ----------
+function getLimits() {
+  const l5h = Number(localStorage.getItem('motaskbot-limit-5h') || 0);
+  const lw = Number(localStorage.getItem('motaskbot-limit-week') || 0);
+  return { l5h, lw };
+}
+
+function fmtDuration(ms: number): string {
+  if (ms <= 0) return 'now';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
 function renderUsage() {
-  const chatTasks = state.tasks;
   const now = Date.now();
+  const h5Ago = now - 5 * 3_600_000;
   const weekAgo = now - 7 * 86_400_000;
   const monthAgo = now - 30 * 86_400_000;
 
-  const thisWeek = chatTasks.filter((t) => new Date(t.created_at).getTime() >= weekAgo);
-  const last30 = chatTasks.filter((t) => new Date(t.created_at).getTime() >= monthAgo);
+  const win5h = state.tasks.filter((t) => new Date(t.created_at).getTime() >= h5Ago);
+  const winWeek = state.tasks.filter((t) => new Date(t.created_at).getTime() >= weekAgo);
+  const win30 = state.tasks.filter((t) => new Date(t.created_at).getTime() >= monthAgo);
 
-  const sum = (arr: any[], key: string) => arr.reduce((a, t) => a + ((t as any)[key] ?? 0), 0);
+  const sumTok = (arr: any[]) =>
+    arr.reduce(
+      (a, t) => a + ((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0),
+      0,
+    );
+  const sumCost = (arr: any[]) =>
+    arr.reduce((a, t) => a + Number((t as any).total_cost_usd ?? 0), 0);
 
-  $('usage-tasks-week').textContent = thisWeek.length.toString();
-  $('usage-in-week').textContent = fmtNum(sum(thisWeek, 'input_tokens'));
-  $('usage-out-week').textContent = fmtNum(sum(thisWeek, 'output_tokens'));
-  const cost = sum(thisWeek, 'total_cost_usd');
-  $('usage-cost-week').textContent = cost > 0 ? `$${cost.toFixed(4)}` : '—';
+  const { l5h, lw } = getLimits();
 
+  // 5h window
+  const tok5h = sumTok(win5h);
+  const cost5h = sumCost(win5h);
+  $('usage-5h-label').textContent = `${fmtNum(tok5h)} tokens · ${win5h.length} tasks${l5h ? ` / ${fmtNum(l5h)}` : ''}`;
+  $('usage-5h-cost').textContent = cost5h > 0 ? `$${cost5h.toFixed(4)}` : '';
+  const pct5h = l5h ? Math.min(100, (tok5h / l5h) * 100) : 0;
+  $('usage-5h-bar').style.width = `${pct5h}%`;
+  // Reset countdown: oldest task in window expires at createdAt + 5h
+  const oldest5h = win5h.reduce<number | null>((min, t) => {
+    const ts = new Date(t.created_at).getTime();
+    return min === null || ts < min ? ts : min;
+  }, null);
+  const reset5h = oldest5h !== null ? oldest5h + 5 * 3_600_000 - now : 0;
+  $('usage-5h-reset').textContent = reset5h > 0 ? `resets in ${fmtDuration(reset5h)}` : 'window empty';
+
+  // Weekly rolling
+  const tokW = sumTok(winWeek);
+  const costW = sumCost(winWeek);
+  $('usage-week-label').textContent = `${fmtNum(tokW)} tokens · ${winWeek.length} tasks${lw ? ` / ${fmtNum(lw)}` : ''}`;
+  $('usage-week-cost').textContent = costW > 0 ? `$${costW.toFixed(4)}` : '';
+  const pctW = lw ? Math.min(100, (tokW / lw) * 100) : 0;
+  $('usage-week-bar').style.width = `${pctW}%`;
+  const oldestWeek = winWeek.reduce<number | null>((min, t) => {
+    const ts = new Date(t.created_at).getTime();
+    return min === null || ts < min ? ts : min;
+  }, null);
+  const resetW = oldestWeek !== null ? oldestWeek + 7 * 86_400_000 - now : 0;
+  $('usage-week-reset').textContent = resetW > 0 ? `resets in ${fmtDuration(resetW)}` : 'window empty';
+
+  // Limits display
+  $('usage-limit-5h-display').textContent = l5h ? fmtNum(l5h) + ' tok' : 'not set';
+  $('usage-limit-week-display').textContent = lw ? fmtNum(lw) + ' tok' : 'not set';
+
+  // Running task indicator
+  const running = state.tasks
+    .filter((t) => t.status === 'running')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  const liveCard = $('usage-live');
+  if (running) {
+    liveCard.classList.remove('hidden');
+    $('usage-live-title').textContent = running.title;
+    $('usage-live-meta').textContent = `${(running as any).model ?? ''} · started ${relDate(running.created_at)}`;
+  } else {
+    liveCard.classList.add('hidden');
+  }
+
+  // By model 30d
   const byModel = new Map<string, { n: number; i: number; o: number; cost: number }>();
-  for (const t of last30) {
+  for (const t of win30) {
     const m = (t as any).model ?? 'unknown';
     const cur = byModel.get(m) ?? { n: 0, i: 0, o: 0, cost: 0 };
     cur.n++;
     cur.i += (t as any).input_tokens ?? 0;
     cur.o += (t as any).output_tokens ?? 0;
-    cur.cost += (t as any).total_cost_usd ?? 0;
+    cur.cost += Number((t as any).total_cost_usd ?? 0);
     byModel.set(m, cur);
   }
   const ul = $('usage-by-model');
   if (byModel.size === 0) {
-    ul.innerHTML = `<li class="text-fg-dim text-xs">No tasks in the last 30 days.</li>`;
+    ul.innerHTML = `<li class="text-fg-dim text-xs">No tasks in last 30d.</li>`;
   } else {
     ul.innerHTML = Array.from(byModel.entries())
       .sort((a, b) => b[1].n - a[1].n)
-      .map(([m, v]) => `<li class="flex items-center justify-between gap-2 py-1">
+      .map(
+        ([m, v]) => `<li class="flex items-center justify-between gap-2 py-1">
         <span class="font-medium">${escapeHtml(m)}</span>
-        <span class="text-fg-muted text-xs">${v.n} tasks · ${fmtNum(v.i)}↓ ${fmtNum(v.o)}↑${v.cost > 0 ? ' · $' + v.cost.toFixed(4) : ''}</span>
-      </li>`)
+        <span class="text-fg-muted text-xs">${v.n} · ${fmtNum(v.i)}↓ ${fmtNum(v.o)}↑${v.cost > 0 ? ' · $' + v.cost.toFixed(4) : ''}</span>
+      </li>`,
+      )
       .join('');
   }
+}
+
+// Refresh countdown every 15s when usage tab active
+setInterval(() => {
+  if (state.tab === 'usage') renderUsage();
+}, 15_000);
+
+// Plan limits modal
+function openLimitsModal() {
+  const { l5h, lw } = getLimits();
+  ($('limits-5h') as HTMLInputElement).value = l5h ? String(l5h) : '';
+  ($('limits-week') as HTMLInputElement).value = lw ? String(lw) : '';
+  $('limits-modal').classList.remove('hidden');
+}
+function closeLimitsModal() {
+  $('limits-modal').classList.add('hidden');
+}
+function saveLimits() {
+  const l5h = Number(($('limits-5h') as HTMLInputElement).value || 0);
+  const lw = Number(($('limits-week') as HTMLInputElement).value || 0);
+  if (l5h > 0) localStorage.setItem('motaskbot-limit-5h', String(l5h));
+  else localStorage.removeItem('motaskbot-limit-5h');
+  if (lw > 0) localStorage.setItem('motaskbot-limit-week', String(lw));
+  else localStorage.removeItem('motaskbot-limit-week');
+  closeLimitsModal();
+  renderUsage();
 }
 
 function fmtNum(n: number): string {
@@ -769,6 +864,13 @@ document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
 });
 
 $('fab-new-task').addEventListener('click', openTaskModal);
+$('usage-edit-limits')?.addEventListener('click', openLimitsModal);
+$('limits-cancel')?.addEventListener('click', closeLimitsModal);
+$('limits-save')?.addEventListener('click', saveLimits);
+$('limits-modal')?.addEventListener('click', (e) => {
+  if (e.target === $('limits-modal')) closeLimitsModal();
+});
+
 $('chat-send')?.addEventListener('click', sendChatMessage);
 $('chat-input')?.addEventListener('keydown', (e: any) => {
   if (e.key === 'Enter' && !e.shiftKey) {

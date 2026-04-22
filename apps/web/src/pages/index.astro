@@ -146,26 +146,86 @@ import Layout from '../layouts/Layout.astro';
         <!-- View: Usage -->
         <div id="view-usage" class="view hidden">
           <div class="px-4 md:px-6 py-4 space-y-4 max-w-3xl mx-auto">
-            <div class="card p-4 space-y-2">
-              <div class="text-xs uppercase tracking-wider text-fg-muted">This week (MoTaskBot)</div>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div><div class="text-[10px] text-fg-dim">Tasks</div><div id="usage-tasks-week" class="text-lg font-semibold">—</div></div>
-                <div><div class="text-[10px] text-fg-dim">Input tokens</div><div id="usage-in-week" class="text-lg font-semibold">—</div></div>
-                <div><div class="text-[10px] text-fg-dim">Output tokens</div><div id="usage-out-week" class="text-lg font-semibold">—</div></div>
-                <div><div class="text-[10px] text-fg-dim">Cost (API est.)</div><div id="usage-cost-week" class="text-lg font-semibold">—</div></div>
+
+            <!-- Running indicator -->
+            <div id="usage-live" class="card p-4 flex items-center gap-3 hidden">
+              <span class="status-dot status-running"></span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium truncate"><span id="usage-live-title"></span></div>
+                <div class="text-[11px] text-fg-muted truncate"><span id="usage-live-meta"></span></div>
               </div>
             </div>
+
+            <!-- Progress windows -->
+            <div class="card p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="text-xs uppercase tracking-wider text-fg-muted">5-hour window</div>
+                <div id="usage-5h-reset" class="text-[10px] text-fg-dim">resets in —</div>
+              </div>
+              <div class="h-2 bg-bg-elevated rounded-full overflow-hidden">
+                <div id="usage-5h-bar" class="h-full bg-accent transition-all duration-500" style="width:0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <span id="usage-5h-label" class="text-fg-muted">0 tokens · 0 tasks</span>
+                <span id="usage-5h-cost" class="text-fg-dim">—</span>
+              </div>
+            </div>
+
+            <div class="card p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="text-xs uppercase tracking-wider text-fg-muted">Weekly (rolling 7d)</div>
+                <div id="usage-week-reset" class="text-[10px] text-fg-dim">resets in —</div>
+              </div>
+              <div class="h-2 bg-bg-elevated rounded-full overflow-hidden">
+                <div id="usage-week-bar" class="h-full bg-status-completed transition-all duration-500" style="width:0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <span id="usage-week-label" class="text-fg-muted">0 tokens · 0 tasks</span>
+                <span id="usage-week-cost" class="text-fg-dim">—</span>
+              </div>
+            </div>
+
+            <!-- Plan limits (editable) -->
+            <div class="card p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="text-xs uppercase tracking-wider text-fg-muted">Plan limits (optional)</div>
+                <button id="usage-edit-limits" class="btn-ghost !py-1 !px-2 text-xs">Edit</button>
+              </div>
+              <p class="text-[11px] text-fg-muted">Set your plan cap to see % used. Stored locally.</p>
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <div><span class="text-fg-dim">5h cap:</span> <span id="usage-limit-5h-display">not set</span></div>
+                <div><span class="text-fg-dim">Weekly cap:</span> <span id="usage-limit-week-display">not set</span></div>
+              </div>
+            </div>
+
+            <!-- By model 30d -->
             <div class="card p-4 space-y-2">
               <div class="text-xs uppercase tracking-wider text-fg-muted">By model (last 30d)</div>
               <ul id="usage-by-model" class="text-sm space-y-1"></ul>
             </div>
-            <a href="https://claude.ai/settings/usage" target="_blank" rel="noreferrer" class="card p-4 flex items-center justify-between hover:border-accent/50">
+
+          </div>
+        </div>
+
+        <!-- Modal: edit plan limits -->
+        <div id="limits-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center">
+          <div class="card w-full md:max-w-md md:rounded-lg rounded-t-2xl rounded-b-none p-5 space-y-4 animate-slide-up md:animate-scale-in">
+            <h2 class="text-base font-semibold">Plan limits</h2>
+            <p class="text-xs text-fg-muted">Tokens cap per rolling window. Stored in your browser.</p>
+            <div class="space-y-3">
               <div>
-                <div class="text-sm font-medium">Claude subscription quota</div>
-                <div class="text-[11px] text-fg-muted">5h limit, weekly caps — opens claude.ai</div>
+                <label class="text-xs text-fg-muted mb-1 block">5-hour limit (tokens)</label>
+                <input id="limits-5h" type="number" class="input" placeholder="e.g. 500000" />
               </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l10-10M7 7h10v10"/></svg>
-            </a>
+              <div>
+                <label class="text-xs text-fg-muted mb-1 block">Weekly limit (tokens)</label>
+                <input id="limits-week" type="number" class="input" placeholder="e.g. 5000000" />
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button id="limits-cancel" class="btn-ghost">Cancel</button>
+              <button id="limits-save" class="btn-primary">Save</button>
+            </div>
           </div>
         </div>
 
