@@ -100,6 +100,9 @@ function executeViaCli(
   const model = process.env.CLAUDE_MODEL || 'haiku';
   const args = ['-p', prompt, '--model', model, '--output-format', 'json'];
   if (opts.sessionId) args.push('--resume', opts.sessionId);
+  // Non-interactive: auto-approve tool use. Worker is local/trusted.
+  // Disable by setting CLAUDE_SAFE=1 (Claude will refuse file writes).
+  if (process.env.CLAUDE_SAFE !== '1') args.push('--dangerously-skip-permissions');
 
   return new Promise((resolve, reject) => {
     const proc = spawn(resolved, args, {
