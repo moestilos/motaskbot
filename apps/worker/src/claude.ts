@@ -13,11 +13,17 @@ export interface ClaudeConfig {
 export interface ExecuteOptions {
   workingDir?: string | null;
   sessionId?: string | null;
+  model?: string | null;
+  chatMode?: boolean; // no tools, no autoheal, no session-resume
 }
 
 export interface ExecuteResult {
   output: string;
   sessionId: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalCostUsd: number | null;
+  durationMs: number | null;
 }
 
 export async function executeTaskWithClaude(
@@ -66,7 +72,14 @@ async function executeViaApi(task: Task, context: ChatContextMessage[], apiKey: 
 
   const out = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n').trim();
   if (!out) throw new Error('Empty response from Anthropic API');
-  return { output: out, sessionId: null };
+  return {
+    output: out,
+    sessionId: null,
+    inputTokens: res.usage?.input_tokens ?? null,
+    outputTokens: res.usage?.output_tokens ?? null,
+    totalCostUsd: null,
+    durationMs: null,
+  };
 }
 
 function resolveCliPath(cliPath: string): string {
@@ -90,19 +103,24 @@ function executeViaCli(
     `task ${task.id} via CLI (${resolved}) cwd=${opts.workingDir ?? '(default)'} resume=${opts.sessionId ?? '(new)'}`,
   );
 
-  // If we have a Claude Code session to resume, let CC manage context fully.
-  // Otherwise seed the prompt with our own chat context.
-  const prompt = opts.sessionId
-    ? `Task: ${task.title}\n\nInstructions:\n${task.instructions}`
-    : buildContextBlock(context) +
-      `Task: ${task.title}\n\nInstructions:\n${task.instructions}\n\nComplete this task and return the result only.`;
+  // Chat mode = pure Q&A, no tools, no session resume.
+  // Task mode w/ session = CC manages context. Task mode w/o session = seed context manually.
+  const prompt = opts.chatMode
+    ? (buildContextBlock(context) + task.instructions)
+    : opts.sessionId
+      ? `Task: ${task.title}\n\nInstructions:\n${task.instructions}`
+      : buildContextBlock(context) +
+        `Task: ${task.title}\n\nInstructions:\n${task.instructions}\n\nComplete this task and return the result only.`;
 
-  const model = process.env.CLAUDE_MODEL || 'haiku';
+  const model = opts.model || process.env.CLAUDE_MODEL || 'haiku';
   const args = ['-p', prompt, '--model', model, '--output-format', 'json'];
-  if (opts.sessionId) args.push('--resume', opts.sessionId);
-  // Non-interactive: auto-approve tool use. Worker is local/trusted.
-  // Disable by setting CLAUDE_SAFE=1 (Claude will refuse file writes).
-  if (process.env.CLAUDE_SAFE !== '1') args.push('--dangerously-skip-permissions');
+
+  if (opts.chatMode) {
+    args.push('--disallowed-tools', 'Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,NotebookEdit,TodoWrite');
+  } else {
+    if (opts.sessionId) args.push('--resume', opts.sessionId);
+    if (process.env.CLAUDE_SAFE !== '1') args.push('--dangerously-skip-permissions');
+  }
 
   return new Promise((resolve, reject) => {
     const proc = spawn(resolved, args, {
@@ -122,14 +140,21 @@ function executeViaCli(
       if (!trimmed) return reject(new Error('Empty output from Claude CLI'));
       let output = trimmed;
       let sessionId: string | null = null;
+      let inputTokens: number | null = null;
+      let outputTokens: number | null = null;
+      let totalCostUsd: number | null = null;
+      let durationMs: number | null = null;
       try {
         const json = JSON.parse(trimmed);
         output = json.result ?? json.response ?? json.text ?? trimmed;
         sessionId = json.session_id ?? json.sessionId ?? null;
-      } catch {
-        // output-format json might not be supported in older CLI → plain text fallback
-      }
-      resolve({ output, sessionId });
+        const u = json.usage ?? {};
+        inputTokens = u.input_tokens ?? null;
+        outputTokens = u.output_tokens ?? null;
+        totalCostUsd = json.total_cost_usd ?? null;
+        durationMs = json.duration_ms ?? null;
+      } catch {}
+      resolve({ output, sessionId, inputTokens, outputTokens, totalCostUsd, durationMs });
     });
   });
 }

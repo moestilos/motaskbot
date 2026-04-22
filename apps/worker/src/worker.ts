@@ -76,11 +76,26 @@ async function getChat(chatId: string): Promise<Chat | null> {
   return data;
 }
 
-async function completeTask(task: Task, result: string, newContext: ChatContextMessage[], newSessionId: string | null, prevSessionId: string | null) {
+async function completeTask(
+  task: Task,
+  result: string,
+  newContext: ChatContextMessage[],
+  newSessionId: string | null,
+  prevSessionId: string | null,
+  usage: { inputTokens: number | null; outputTokens: number | null; totalCostUsd: number | null; durationMs: number | null },
+) {
   const chatUpdate: Record<string, unknown> = { context: newContext };
   if (newSessionId && newSessionId !== prevSessionId) chatUpdate.claude_session_id = newSessionId;
   const [tUpd, cUpd] = await Promise.all([
-    sb.from('tasks').update({ status: 'completed', result, error: null }).eq('id', task.id),
+    sb.from('tasks').update({
+      status: 'completed',
+      result,
+      error: null,
+      input_tokens: usage.inputTokens,
+      output_tokens: usage.outputTokens,
+      total_cost_usd: usage.totalCostUsd,
+      duration_ms: usage.durationMs,
+    } as any).eq('id', task.id),
     sb.from('chats').update(chatUpdate).eq('id', task.chat_id),
   ]);
   if (tUpd.error) log.error(`update task ${task.id} failed`, tUpd.error.message);
@@ -103,13 +118,17 @@ async function processTask(taskId: string) {
     const chat = await getChat(task.chat_id);
     if (!chat) throw new Error('Chat not found');
 
-    let { output, sessionId } = await executeTaskWithClaude(task, chat.context ?? [], claudeConfig, {
-      workingDir: chat.working_dir,
-      sessionId: chat.claude_session_id,
-    });
+    const isChat = (task as any).kind === 'chat';
+    let { output, sessionId, inputTokens, outputTokens, totalCostUsd, durationMs } =
+      await executeTaskWithClaude(task, chat.context ?? [], claudeConfig, {
+        workingDir: isChat ? null : chat.working_dir,
+        sessionId: isChat ? null : chat.claude_session_id,
+        model: (task as any).model ?? undefined,
+        chatMode: isChat,
+      });
 
     // ---- Autoheal: verify build + ask Claude to fix on failure ----
-    const AUTOHEAL_ENABLED = process.env.AUTOHEAL !== '0';
+    const AUTOHEAL_ENABLED = !isChat && process.env.AUTOHEAL !== '0';
     const MAX_HEAL_ATTEMPTS = Number(process.env.AUTOHEAL_MAX_ATTEMPTS ?? 2);
     let healLog = '';
     if (AUTOHEAL_ENABLED && chat.working_dir) {
@@ -147,7 +166,9 @@ async function processTask(taskId: string) {
       { role: 'user', content: `[Task: ${task.title}]\n${task.instructions}`, task_id: task.id, at: now },
       { role: 'assistant', content: output + healLog, task_id: task.id, at: now },
     ];
-    await completeTask(task, output + healLog, newContext, sessionId, chat.claude_session_id);
+    await completeTask(task, output + healLog, newContext, sessionId, chat.claude_session_id, {
+      inputTokens, outputTokens, totalCostUsd, durationMs,
+    });
     log.info(`✓ completed task ${task.id}${sessionId ? ` (session ${sessionId.slice(0, 8)})` : ''}`);
   } catch (err) {
     log.error(`✗ task ${taskId} failed`, (err as Error).message);

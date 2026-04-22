@@ -3,7 +3,7 @@ import type { Project, Chat, Task, ClaudeSession } from '@motaskbot/shared/types
 
 const sb = getSupabase();
 
-type Tab = 'tasks' | 'projects' | 'sessions';
+type Tab = 'tasks' | 'projects' | 'sessions' | 'chat' | 'usage';
 
 interface Target {
   kind: 'session' | 'project';
@@ -50,6 +50,7 @@ function renderTasks() {
   const empty = $('tasks-empty');
   const q = state.searchQuery.toLowerCase();
   const tasks = state.tasks
+    .filter((t) => (t as any).kind !== 'chat')
     .filter((t) => {
       if (!q) return true;
       return (t.title + ' ' + t.instructions + ' ' + (t.result ?? '')).toLowerCase().includes(q);
@@ -86,10 +87,12 @@ function renderTasks() {
                 <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(t.updated_at)}</div>
               </div>
               <div class="text-xs text-fg-muted line-clamp-2 mt-0.5">${escapeHtml(preview)}</div>
-              <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5">
+              <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5 flex-wrap">
                 <span class="uppercase tracking-wide">${t.status}</span>
                 ${projectBit ? '<span>·</span>' + projectBit : ''}
                 ${chatBit}
+                ${(t as any).model ? `<span>·</span><span class="text-fg-muted">${escapeHtml((t as any).model)}</span>` : ''}
+                ${(t as any).input_tokens ? `<span>·</span><span>${fmtNum(((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0))} tok</span>` : ''}
               </div>
             </div>
           </div>
@@ -108,6 +111,7 @@ function renderProjects() {
   const ul = $('projects-feed');
   const q = state.searchQuery.toLowerCase();
   const projects = state.projects
+    .filter((p) => p.name !== CHAT_PROJECT_NAME)
     .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.working_dir ?? '').toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -250,8 +254,9 @@ function renderDesktopSidebar() {
 // ---------- View switching ----------
 function setTab(tab: Tab) {
   state.tab = tab;
-  ['tasks', 'projects', 'sessions'].forEach((t) => {
-    $(`view-${t}`).classList.toggle('hidden', t !== tab);
+  ['tasks', 'projects', 'sessions', 'chat', 'usage'].forEach((t) => {
+    const el = document.getElementById(`view-${t}`);
+    if (el) el.classList.toggle('hidden', t !== tab);
   });
   document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((b) => {
     const active = b.dataset.tab === tab;
@@ -267,7 +272,140 @@ function renderAll() {
   if (state.tab === 'tasks') renderTasks();
   else if (state.tab === 'projects') renderProjects();
   else if (state.tab === 'sessions') renderSessions();
+  else if (state.tab === 'chat') renderChatView();
+  else if (state.tab === 'usage') renderUsage();
   renderDesktopSidebar();
+}
+
+// ---------- Chat view (pure Q&A) ----------
+const CHAT_PROJECT_NAME = '__chat__';
+async function ensureChatProject(): Promise<{ projectId: string; chatId: string }> {
+  let p = state.projects.find((x) => x.name === CHAT_PROJECT_NAME);
+  if (!p) {
+    const res = await sb.from('projects').insert({ name: CHAT_PROJECT_NAME }).select().single();
+    if (res.error) throw new Error(res.error.message);
+    p = res.data;
+    state.projects.unshift(p);
+  }
+  let c = state.chats.find((x) => x.project_id === p!.id && x.name === 'default');
+  if (!c) {
+    const res = await sb.from('chats').insert({ project_id: p!.id, name: 'default' }).select().single();
+    if (res.error) throw new Error(res.error.message);
+    c = res.data;
+    state.chats.unshift(c);
+  }
+  return { projectId: p!.id, chatId: c!.id };
+}
+
+function renderChatView() {
+  const list = $('chat-messages');
+  const chatTasks = state.tasks
+    .filter((t) => (t as any).kind === 'chat')
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  if (chatTasks.length === 0) {
+    list.innerHTML = `<div class="text-center text-fg-dim text-sm py-16">Ask Claude anything — no tools, no file edits.</div>`;
+    return;
+  }
+  list.innerHTML = chatTasks
+    .map((t) => {
+      const status = t.status === 'running' ? '<span class="status-dot status-running ml-2"></span>' : '';
+      const reply = t.result
+        ? `<div class="mt-1.5 text-sm whitespace-pre-wrap">${escapeHtml(t.result)}</div>`
+        : t.status === 'failed'
+          ? `<div class="mt-1.5 text-xs text-status-failed">${escapeHtml(t.error ?? 'Failed')}</div>`
+          : `<div class="mt-1.5 text-xs text-fg-dim italic">thinking…</div>`;
+      const tokens = t.input_tokens || t.output_tokens
+        ? `<div class="text-[10px] text-fg-dim mt-1">${t.model ?? ''} · ${t.input_tokens ?? 0} in · ${t.output_tokens ?? 0} out${t.duration_ms ? ' · ' + Math.round(t.duration_ms / 1000) + 's' : ''}</div>`
+        : '';
+      return `
+      <div class="space-y-2">
+        <div class="card p-3 bg-bg-elevated/60 ml-8 md:ml-16">
+          <div class="text-[10px] uppercase tracking-wider text-fg-dim mb-1">You</div>
+          <div class="text-sm whitespace-pre-wrap">${escapeHtml(t.instructions)}</div>
+        </div>
+        <div class="card p-3 mr-8 md:mr-16">
+          <div class="text-[10px] uppercase tracking-wider text-accent mb-1 flex items-center">Claude${status}</div>
+          ${reply}
+          ${tokens}
+        </div>
+      </div>`;
+    })
+    .join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const ta = $('chat-input') as HTMLTextAreaElement;
+  const text = ta.value.trim();
+  if (!text) return;
+  const model = ($('chat-model') as HTMLSelectElement).value;
+  try {
+    const { projectId, chatId } = await ensureChatProject();
+    const title = text.split('\n')[0].slice(0, 60) || 'chat';
+    const { error } = await sb.from('tasks').insert({
+      project_id: projectId,
+      chat_id: chatId,
+      title,
+      instructions: text,
+      kind: 'chat',
+      model,
+    } as any);
+    if (error) throw new Error(error.message);
+    ta.value = '';
+    ta.style.height = 'auto';
+  } catch (e) {
+    alert((e as Error).message);
+  }
+}
+
+// ---------- Usage view ----------
+function renderUsage() {
+  const chatTasks = state.tasks;
+  const now = Date.now();
+  const weekAgo = now - 7 * 86_400_000;
+  const monthAgo = now - 30 * 86_400_000;
+
+  const thisWeek = chatTasks.filter((t) => new Date(t.created_at).getTime() >= weekAgo);
+  const last30 = chatTasks.filter((t) => new Date(t.created_at).getTime() >= monthAgo);
+
+  const sum = (arr: any[], key: string) => arr.reduce((a, t) => a + ((t as any)[key] ?? 0), 0);
+
+  $('usage-tasks-week').textContent = thisWeek.length.toString();
+  $('usage-in-week').textContent = fmtNum(sum(thisWeek, 'input_tokens'));
+  $('usage-out-week').textContent = fmtNum(sum(thisWeek, 'output_tokens'));
+  const cost = sum(thisWeek, 'total_cost_usd');
+  $('usage-cost-week').textContent = cost > 0 ? `$${cost.toFixed(4)}` : '—';
+
+  const byModel = new Map<string, { n: number; i: number; o: number; cost: number }>();
+  for (const t of last30) {
+    const m = (t as any).model ?? 'unknown';
+    const cur = byModel.get(m) ?? { n: 0, i: 0, o: 0, cost: 0 };
+    cur.n++;
+    cur.i += (t as any).input_tokens ?? 0;
+    cur.o += (t as any).output_tokens ?? 0;
+    cur.cost += (t as any).total_cost_usd ?? 0;
+    byModel.set(m, cur);
+  }
+  const ul = $('usage-by-model');
+  if (byModel.size === 0) {
+    ul.innerHTML = `<li class="text-fg-dim text-xs">No tasks in the last 30 days.</li>`;
+  } else {
+    ul.innerHTML = Array.from(byModel.entries())
+      .sort((a, b) => b[1].n - a[1].n)
+      .map(([m, v]) => `<li class="flex items-center justify-between gap-2 py-1">
+        <span class="font-medium">${escapeHtml(m)}</span>
+        <span class="text-fg-muted text-xs">${v.n} tasks · ${fmtNum(v.i)}↓ ${fmtNum(v.o)}↑${v.cost > 0 ? ' · $' + v.cost.toFixed(4) : ''}</span>
+      </li>`)
+      .join('');
+  }
+}
+
+function fmtNum(n: number): string {
+  if (!n) return '0';
+  if (n < 1000) return n.toString();
+  if (n < 1_000_000) return (n / 1000).toFixed(1) + 'k';
+  return (n / 1_000_000).toFixed(2) + 'M';
 }
 
 // ---------- Task modal ----------
@@ -455,7 +593,8 @@ async function submitTask() {
 
   if (!chat_id || !project_id) return alert('Could not resolve target.');
 
-  const { error } = await sb.from('tasks').insert({ project_id, chat_id, title, instructions });
+  const model = ($('task-model') as HTMLSelectElement)?.value || 'haiku';
+  const { error } = await sb.from('tasks').insert({ project_id, chat_id, title, instructions, model } as any);
   if (error) return alert(error.message);
 
   closeTaskModal();
@@ -590,6 +729,13 @@ document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
 });
 
 $('fab-new-task').addEventListener('click', openTaskModal);
+$('chat-send')?.addEventListener('click', sendChatMessage);
+$('chat-input')?.addEventListener('keydown', (e: any) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
 $('desktop-new-task')?.addEventListener('click', openTaskModal);
 $('task-close').addEventListener('click', closeTaskModal);
 $('task-create').addEventListener('click', submitTask);

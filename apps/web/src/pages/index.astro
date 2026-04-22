@@ -101,6 +101,50 @@ import Layout from '../layouts/Layout.astro';
           <ul id="sessions-feed" class="px-4 md:px-6 py-4 space-y-3"></ul>
         </div>
 
+        <!-- View: Chat (pure Q&A, no tools) -->
+        <div id="view-chat" class="view hidden flex flex-col h-full">
+          <div id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-3"></div>
+          <div class="border-t border-border p-3 bg-bg-raised sticky bottom-0">
+            <div class="flex gap-2 items-end max-w-3xl mx-auto">
+              <select id="chat-model" class="input !w-auto !py-2 flex-shrink-0">
+                <option value="haiku">haiku</option>
+                <option value="sonnet">sonnet</option>
+                <option value="opus">opus</option>
+              </select>
+              <textarea id="chat-input" class="input min-h-[44px] max-h-32 resize-none" rows="1" placeholder="Ask Claude…"></textarea>
+              <button id="chat-send" class="btn-primary !py-2 !px-4 flex-shrink-0" aria-label="Send">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- View: Usage -->
+        <div id="view-usage" class="view hidden">
+          <div class="px-4 md:px-6 py-4 space-y-4 max-w-3xl mx-auto">
+            <div class="card p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-fg-muted">This week (MoTaskBot)</div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div><div class="text-[10px] text-fg-dim">Tasks</div><div id="usage-tasks-week" class="text-lg font-semibold">—</div></div>
+                <div><div class="text-[10px] text-fg-dim">Input tokens</div><div id="usage-in-week" class="text-lg font-semibold">—</div></div>
+                <div><div class="text-[10px] text-fg-dim">Output tokens</div><div id="usage-out-week" class="text-lg font-semibold">—</div></div>
+                <div><div class="text-[10px] text-fg-dim">Cost (API est.)</div><div id="usage-cost-week" class="text-lg font-semibold">—</div></div>
+              </div>
+            </div>
+            <div class="card p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-fg-muted">By model (last 30d)</div>
+              <ul id="usage-by-model" class="text-sm space-y-1"></ul>
+            </div>
+            <a href="https://claude.ai/settings/usage" target="_blank" rel="noreferrer" class="card p-4 flex items-center justify-between hover:border-accent/50">
+              <div>
+                <div class="text-sm font-medium">Claude subscription quota</div>
+                <div class="text-[11px] text-fg-muted">5h limit, weekly caps — opens claude.ai</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l10-10M7 7h10v10"/></svg>
+            </a>
+          </div>
+        </div>
+
       </section>
 
       <!-- Mobile FAB -->
@@ -138,6 +182,18 @@ import Layout from '../layouts/Layout.astro';
               <span>Sessions</span>
             </button>
           </li>
+          <li class="flex-1">
+            <button data-tab="chat" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Chat">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+              <span>Chat</span>
+            </button>
+          </li>
+          <li class="flex-1">
+            <button data-tab="usage" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Usage">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+              <span>Usage</span>
+            </button>
+          </li>
         </ul>
       </nav>
     </main>
@@ -168,6 +224,15 @@ import Layout from '../layouts/Layout.astro';
         <div>
           <label class="text-xs text-fg-muted mb-1.5 block">Title <span class="text-fg-dim">(optional)</span></label>
           <input id="task-title" class="input" placeholder="Auto from first line" autocomplete="off" />
+        </div>
+
+        <div>
+          <label class="text-xs text-fg-muted mb-1.5 block">Model</label>
+          <select id="task-model" class="input">
+            <option value="haiku">Haiku (cheapest, fast)</option>
+            <option value="sonnet">Sonnet (balanced)</option>
+            <option value="opus">Opus (most capable)</option>
+          </select>
         </div>
 
         <div>

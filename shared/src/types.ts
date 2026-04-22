@@ -35,6 +35,8 @@ export interface ClaudeSession {
   discovered_at: string;
 }
 
+export type TaskKind = 'task' | 'chat';
+
 export interface Task {
   id: string;
   project_id: string;
@@ -44,6 +46,12 @@ export interface Task {
   status: TaskStatus;
   result: string | null;
   error: string | null;
+  model: string | null;
+  kind: TaskKind;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_cost_usd: number | null;
+  duration_ms: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,7 +61,7 @@ export interface Database {
     Tables: {
       projects: { Row: Project; Insert: Omit<Project, 'id' | 'created_at'> & { id?: string; created_at?: string }; Update: Partial<Project> };
       chats: { Row: Chat; Insert: Omit<Chat, 'id' | 'created_at' | 'context'> & { id?: string; created_at?: string; context?: ChatContextMessage[] }; Update: Partial<Chat> };
-      tasks: { Row: Task; Insert: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status' | 'result' | 'error'> & { id?: string; status?: TaskStatus; result?: string | null; error?: string | null; created_at?: string; updated_at?: string }; Update: Partial<Task> };
+      tasks: { Row: Task; Insert: Partial<Task> & { project_id: string; chat_id: string; title: string; instructions: string }; Update: Partial<Task> };
       claude_sessions: { Row: ClaudeSession; Insert: ClaudeSession; Update: Partial<ClaudeSession> };
     };
   };
