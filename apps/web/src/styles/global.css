@@ -91,12 +91,15 @@
 
   .status-dot { @apply inline-block w-2 h-2 rounded-full transition-all duration-300; }
   .status-pending   { @apply bg-status-pending; }
-  .status-running   { @apply bg-status-running animate-pulse-subtle; }
+  .status-running   {
+    @apply bg-status-running;
+    animation: pulseSubtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
   .status-completed { @apply bg-status-completed; }
   .status-failed    { @apply bg-status-failed; }
 
   .modal-backdrop {
-    @apply animate-fade-in;
+    animation: fadeIn 0.5s ease-out;
   }
 
   /* Enhanced sidebar */
@@ -155,7 +158,8 @@
 
   /* Floating orb decorations (subtle background elements) */
   .orb {
-    @apply absolute rounded-full blur-3xl opacity-5 pointer-events-none animate-float;
+    @apply absolute rounded-full blur-3xl opacity-5 pointer-events-none;
+    animation: float 6s ease-in-out infinite;
     backdrop-filter: blur(100px);
   }
   .orb-1 {
