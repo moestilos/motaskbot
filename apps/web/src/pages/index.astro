@@ -2,161 +2,188 @@
 import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="MoTaskBot">
-  <div class="flex h-[100dvh] overflow-hidden relative">
-    <!-- Sidebar -->
-    <aside
-      id="sidebar"
-      class="fixed md:static inset-y-0 left-0 z-40 w-[85%] max-w-[320px] md:w-72 border-r border-border bg-bg-raised flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-out"
-    >
+  <div class="flex flex-col md:flex-row h-[100dvh] overflow-hidden relative">
+
+    <!-- Desktop sidebar (hidden on mobile) -->
+    <aside class="hidden md:flex w-72 border-r border-border bg-bg-raised flex-col">
       <div class="px-4 py-3 border-b border-border flex items-center gap-2">
-        <div class="w-8 h-8 md:w-7 md:h-7 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
+        <div class="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold">MoTaskBot</div>
-          <div class="text-[11px] text-fg-dim truncate" id="worker-status">worker: unknown</div>
+          <div class="text-[11px] text-fg-dim truncate" id="worker-status-desktop">worker: unknown</div>
         </div>
-        <button id="sidebar-close" aria-label="Close menu" class="md:hidden btn-ghost !p-2 !text-lg">×</button>
       </div>
-
       <div class="p-3 space-y-3 flex-1 overflow-y-auto">
         <section>
           <div class="flex items-center justify-between px-1 mb-1.5">
             <h3 class="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Projects</h3>
-            <button id="new-project-btn" class="btn-ghost !px-2 !py-1 text-xs">+ new</button>
+            <button id="new-project-btn-desktop" class="btn-ghost !px-2 !py-1 text-xs">+ new</button>
           </div>
-          <ul id="project-list" class="space-y-0.5"></ul>
-        </section>
-
-        <section id="chats-section" class="hidden">
-          <div class="flex items-center justify-between px-1 mb-1.5">
-            <h3 class="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Chats</h3>
-            <button id="new-chat-btn" class="btn-ghost !px-2 !py-1 text-xs">+ new</button>
-          </div>
-          <ul id="chat-list" class="space-y-0.5"></ul>
+          <ul id="project-list-desktop" class="space-y-0.5"></ul>
         </section>
       </div>
     </aside>
 
-    <!-- Sidebar overlay on mobile -->
-    <div id="sidebar-overlay" class="hidden md:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"></div>
-
-    <!-- Main -->
+    <!-- Main view area -->
     <main class="flex-1 flex flex-col overflow-hidden">
-      <header class="px-4 md:px-6 py-3 border-b border-border flex items-center gap-3">
-        <button id="sidebar-open" aria-label="Open menu" class="md:hidden btn-ghost !p-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
+
+      <!-- Top header (mobile + desktop) -->
+      <header class="px-4 md:px-6 py-3 border-b border-border flex items-center gap-3 bg-bg-raised md:bg-transparent">
+        <div class="md:hidden w-8 h-8 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
         <div class="flex-1 min-w-0">
-          <h1 id="main-title" class="text-sm font-semibold truncate">Select a project</h1>
-          <p id="main-subtitle" class="text-xs text-fg-muted truncate"></p>
+          <h1 id="view-title" class="text-sm font-semibold truncate">Tasks</h1>
+          <p id="view-subtitle" class="text-[11px] text-fg-muted truncate" data-worker>realtime: connecting…</p>
         </div>
-        <button id="new-task-btn" class="btn-primary hidden">
-          <span class="hidden sm:inline">+ New Task</span>
-          <span class="sm:hidden">+ Task</span>
+        <button id="search-toggle" aria-label="Search" class="btn-ghost !p-2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         </button>
       </header>
 
-      <section class="flex-1 overflow-y-auto px-4 md:px-6 py-4">
-        <div id="empty-state" class="h-full flex items-center justify-center text-fg-dim text-sm text-center px-6">
-          Create a project to get started.
+      <!-- Search bar (collapsible) -->
+      <div id="search-bar" class="hidden px-4 md:px-6 py-2 border-b border-border bg-bg-raised">
+        <input id="search-input" class="input" placeholder="Search tasks, sessions, projects…" autocomplete="off" />
+      </div>
+
+      <!-- Content area (tab switched) -->
+      <section class="flex-1 overflow-y-auto pb-24 md:pb-4">
+
+        <!-- View: Tasks feed -->
+        <div id="view-tasks" class="view">
+          <div id="tasks-empty" class="h-full flex flex-col items-center justify-center text-fg-dim text-sm text-center px-6 py-20 gap-2">
+            <div class="text-4xl mb-2">✨</div>
+            <div>No tasks yet.</div>
+            <div class="text-[11px]">Tap <span class="text-accent">+</span> to send one to Claude.</div>
+          </div>
+          <ul id="tasks-feed" class="px-3 md:px-6 py-3 space-y-2 hidden"></ul>
         </div>
-        <ul id="task-list" class="space-y-2 hidden"></ul>
+
+        <!-- View: Projects -->
+        <div id="view-projects" class="view hidden">
+          <ul id="projects-feed" class="px-3 md:px-6 py-3 space-y-2"></ul>
+        </div>
+
+        <!-- View: Sessions (Claude Code) -->
+        <div id="view-sessions" class="view hidden">
+          <ul id="sessions-feed" class="px-3 md:px-6 py-3 space-y-2"></ul>
+        </div>
+
       </section>
 
-      <!-- Mobile FAB new task -->
+      <!-- Mobile FAB -->
       <button
         id="fab-new-task"
         aria-label="New task"
-        class="hidden md:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white text-2xl shadow-lg flex items-center justify-center"
-      >+</button>
+        class="md:hidden fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+
+      <!-- Desktop "+" button -->
+      <button id="desktop-new-task" class="hidden md:inline-flex btn-primary fixed bottom-5 right-5 z-30">+ New Task</button>
+
+      <!-- Bottom tab bar (mobile only) -->
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised border-t border-border pb-[env(safe-area-inset-bottom)]">
+        <ul class="flex items-stretch">
+          <li class="flex-1">
+            <button data-tab="tasks" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Tasks">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              <span>Tasks</span>
+            </button>
+          </li>
+          <li class="flex-1">
+            <button data-tab="projects" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Projects">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              <span>Projects</span>
+            </button>
+          </li>
+          <li class="flex-1">
+            <button data-tab="sessions" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Sessions">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <span>Sessions</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
     </main>
   </div>
 
-  <!-- Modal: new chat -->
-  <div id="chat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-xl rounded-b-none md:p-5 p-4 space-y-4 max-h-[92dvh] overflow-y-auto">
-      <div class="flex items-center justify-between">
-        <h2 class="text-base font-semibold">New Chat</h2>
-        <button id="chat-cancel-x" aria-label="Close" class="btn-ghost !p-2 md:hidden !text-xl">×</button>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs text-fg-muted mb-1 block">Chat name</label>
-          <input id="chat-name" class="input" placeholder="e.g. refactor-auth" autocomplete="off" />
-        </div>
-        <div>
-          <label class="text-xs text-fg-muted mb-1 block">Claude Code session (optional)</label>
-          <select id="chat-session" class="input">
-            <option value="">— None (fresh session) —</option>
-          </select>
-          <p class="text-[11px] text-fg-dim mt-1">Resume an existing Claude Code conversation.</p>
-        </div>
-        <div>
-          <label class="text-xs text-fg-muted mb-1 block">Folder</label>
-          <select id="chat-dir-select" class="input">
-            <option value="">— None —</option>
-            <option value="__custom__">Custom path…</option>
-          </select>
-          <input id="chat-working-dir" class="input font-mono mt-2 hidden" placeholder="C:\\path\\to\\project" autocomplete="off" />
-          <p class="text-[11px] text-fg-dim mt-1">Claude runs here (reads CLAUDE.md, repo files).</p>
-        </div>
-      </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button id="chat-cancel" class="btn-ghost hidden md:inline-flex">Cancel</button>
-        <button id="chat-create" class="btn-primary flex-1 md:flex-none justify-center">Create</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: new task -->
+  <!-- Modal: Quick Task (unified) -->
   <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-xl rounded-b-none md:p-5 p-4 space-y-4 max-h-[92dvh] overflow-y-auto">
-      <div class="flex items-center justify-between">
+    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[95dvh] flex flex-col">
+      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">New Task</h2>
-        <button id="task-cancel-x" aria-label="Close" class="btn-ghost !p-2 md:hidden !text-xl">×</button>
+        <button id="task-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
       </div>
-      <div class="space-y-3">
+
+      <div class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
+        <!-- Target picker -->
         <div>
-          <label class="text-xs text-fg-muted mb-1 block">Chat</label>
-          <select id="task-chat" class="input"></select>
+          <label class="text-xs text-fg-muted mb-1.5 block">Send to</label>
+          <div id="target-selected" class="card p-3 flex items-center justify-between gap-3 cursor-pointer active:bg-bg-elevated">
+            <div class="flex-1 min-w-0">
+              <div id="target-label" class="text-sm font-medium truncate">Choose a session or project</div>
+              <div id="target-sub" class="text-[11px] text-fg-muted truncate">Tap to pick</div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fg-dim"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
+
+        <!-- Title + instructions -->
         <div>
-          <label class="text-xs text-fg-muted mb-1 block">Title</label>
-          <input id="task-title" class="input" placeholder="Short summary" autocomplete="off" />
+          <label class="text-xs text-fg-muted mb-1.5 block">Title <span class="text-fg-dim">(optional)</span></label>
+          <input id="task-title" class="input" placeholder="Auto from first line" autocomplete="off" />
         </div>
+
         <div>
-          <label class="text-xs text-fg-muted mb-1 block">Instructions</label>
-          <textarea id="task-instructions" class="textarea" placeholder="What should Claude do?"></textarea>
+          <label class="text-xs text-fg-muted mb-1.5 block">Prompt</label>
+          <textarea id="task-instructions" class="textarea min-h-[160px]" placeholder="What should Claude do?"></textarea>
         </div>
       </div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button id="task-cancel" class="btn-ghost hidden md:inline-flex">Cancel</button>
-        <button id="task-create" class="btn-primary flex-1 md:flex-none justify-center">Create</button>
+
+      <div class="px-4 md:px-5 py-3 border-t border-border sticky bottom-0 bg-bg-raised">
+        <button id="task-create" class="btn-primary w-full justify-center py-3 text-base font-semibold">
+          Send to Claude
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: task detail -->
+  <!-- Modal: Target picker (session / new project) -->
+  <div id="target-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end md:items-center justify-center">
+    <div class="card w-full md:max-w-lg md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[92dvh] flex flex-col">
+      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
+        <h2 class="text-base font-semibold">Send task to…</h2>
+        <button id="target-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
+      </div>
+      <div class="px-4 md:px-5 pt-3">
+        <input id="target-search" class="input" placeholder="Search sessions, projects…" autocomplete="off" />
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 space-y-1" id="target-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Task detail (bottom sheet) -->
   <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col">
-      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-2xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col">
+      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
         <div class="min-w-0 flex-1">
           <h2 id="detail-title" class="text-sm font-semibold truncate"></h2>
-          <div id="detail-meta" class="text-xs text-fg-muted mt-0.5 truncate"></div>
+          <div id="detail-meta" class="text-[11px] text-fg-muted mt-0.5 truncate"></div>
         </div>
-        <button id="detail-close" class="btn-ghost !p-2 !text-lg md:!p-2 md:!text-sm">×</button>
+        <button id="detail-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
       </div>
       <div class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
         <div>
-          <h3 class="text-xs uppercase tracking-wider text-fg-muted mb-1">Instructions</h3>
-          <pre id="detail-instructions" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded p-3 border border-border"></pre>
+          <h3 class="text-[10px] uppercase tracking-wider text-fg-muted mb-1">Prompt</h3>
+          <pre id="detail-instructions" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded-md p-3 border border-border"></pre>
         </div>
         <div>
-          <h3 class="text-xs uppercase tracking-wider text-fg-muted mb-1">Result</h3>
-          <pre id="detail-result" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded p-3 border border-border min-h-[100px]"></pre>
+          <h3 class="text-[10px] uppercase tracking-wider text-fg-muted mb-1">Result</h3>
+          <pre id="detail-result" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded-md p-3 border border-border min-h-[100px]"></pre>
         </div>
         <div id="detail-error-wrap" class="hidden">
-          <h3 class="text-xs uppercase tracking-wider text-status-failed mb-1">Error</h3>
-          <pre id="detail-error" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded p-3 border border-status-failed/40"></pre>
+          <h3 class="text-[10px] uppercase tracking-wider text-status-failed mb-1">Error</h3>
+          <pre id="detail-error" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded-md p-3 border border-status-failed/40"></pre>
         </div>
       </div>
     </div>

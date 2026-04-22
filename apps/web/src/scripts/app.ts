@@ -3,324 +3,471 @@ import type { Project, Chat, Task, ClaudeSession } from '@motaskbot/shared/types
 
 const sb = getSupabase();
 
+type Tab = 'tasks' | 'projects' | 'sessions';
+
+interface Target {
+  kind: 'session' | 'project';
+  project_id?: string;
+  chat_id?: string;
+  session_id?: string;
+  label: string;
+  sub: string;
+  working_dir?: string | null;
+}
+
 const state = {
   projects: [] as Project[],
   chats: [] as Chat[],
   tasks: [] as Task[],
   sessions: [] as ClaudeSession[],
-  currentProjectId: null as string | null,
-  currentChatId: null as string | null,
+  tab: 'tasks' as Tab,
+  searchOpen: false,
+  searchQuery: '',
+  target: null as Target | null,
 };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
-// ---------- Rendering ----------
-function renderProjects() {
-  const ul = $('project-list');
-  ul.innerHTML = state.projects
-    .map(
-      (p) => `
-      <li>
-        <button data-id="${p.id}" class="project-item w-full text-left px-2 py-1.5 rounded text-sm ${p.id === state.currentProjectId ? 'bg-bg-elevated text-fg' : 'text-fg-muted hover:bg-bg-elevated hover:text-fg'}">
-          ${escapeHtml(p.name)}
-        </button>
-      </li>`
-    )
-    .join('');
-  ul.querySelectorAll<HTMLButtonElement>('.project-item').forEach((btn) => {
-    btn.addEventListener('click', () => selectProject(btn.dataset.id!));
-  });
-}
-
-function renderChats() {
-  const section = $('chats-section');
-  const ul = $('chat-list');
-  if (!state.currentProjectId) {
-    section.classList.add('hidden');
-    return;
-  }
-  section.classList.remove('hidden');
-  const chats = state.chats.filter((c) => c.project_id === state.currentProjectId);
-  ul.innerHTML =
-    chats
-      .map(
-        (c) => {
-          const tag = c.claude_session_id
-            ? `<span class="text-[10px] text-accent ml-1">⎋ CC</span>`
-            : '';
-          return `
-      <li>
-        <button data-id="${c.id}" class="chat-item w-full text-left px-2 py-1.5 rounded text-sm ${c.id === state.currentChatId ? 'bg-bg-elevated text-fg' : 'text-fg-muted hover:bg-bg-elevated hover:text-fg'}">
-          # ${escapeHtml(c.name)}${tag}
-        </button>
-      </li>`;
-        },
-      )
-      .join('') ||
-    `<li class="text-[11px] text-fg-dim px-2 py-1">No chats yet.</li>`;
-  ul.querySelectorAll<HTMLButtonElement>('.chat-item').forEach((btn) => {
-    btn.addEventListener('click', () => selectChat(btn.dataset.id!));
-  });
-}
-
-function renderTasks() {
-  const list = $('task-list');
-  const empty = $('empty-state');
-  const newBtn = $('new-task-btn');
-  const title = $('main-title');
-  const subtitle = $('main-subtitle');
-
-  if (!state.currentProjectId) {
-    list.classList.add('hidden');
-    empty.classList.remove('hidden');
-    empty.textContent = 'Create a project to get started.';
-    newBtn.classList.add('hidden');
-    title.textContent = 'Select a project';
-    subtitle.textContent = '';
-    return;
-  }
-
-  const project = state.projects.find((p) => p.id === state.currentProjectId);
-  title.textContent = project?.name ?? '';
-  const chat = state.chats.find((c) => c.id === state.currentChatId);
-  if (chat) {
-    const bits = [`# ${chat.name}`];
-    if (chat.working_dir) bits.push(`📁 ${chat.working_dir}`);
-    if (chat.claude_session_id) bits.push(`⎋ ${chat.claude_session_id.slice(0, 8)}`);
-    subtitle.textContent = bits.join(' · ');
-  } else {
-    subtitle.textContent = 'all chats';
-  }
-
-  const chatsForProject = state.chats.filter((c) => c.project_id === state.currentProjectId);
-  const tasks = state.tasks
-    .filter((t) => t.project_id === state.currentProjectId)
-    .filter((t) => (state.currentChatId ? t.chat_id === state.currentChatId : true))
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  newBtn.classList.toggle('hidden', chatsForProject.length === 0);
-
-  if (tasks.length === 0) {
-    list.classList.add('hidden');
-    empty.classList.remove('hidden');
-    empty.textContent =
-      chatsForProject.length === 0 ? 'Create a chat first, then add tasks.' : 'No tasks yet. Click "New Task".';
-    return;
-  }
-  empty.classList.add('hidden');
-  list.classList.remove('hidden');
-  list.innerHTML = tasks
-    .map(
-      (t) => `
-      <li>
-        <button data-id="${t.id}" class="task-item w-full text-left card hover:border-accent/50 transition-colors px-4 py-3 flex items-start gap-3">
-          <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-3">
-              <div class="text-sm font-medium truncate">${escapeHtml(t.title)}</div>
-              <div class="text-[11px] text-fg-dim flex-shrink-0">${formatTime(t.updated_at)}</div>
-            </div>
-            <div class="text-xs text-fg-muted truncate mt-0.5">${escapeHtml(t.instructions.slice(0, 140))}</div>
-            <div class="text-[11px] text-fg-dim mt-1">
-              <span class="uppercase tracking-wide">${t.status}</span>
-              ${chatLabel(t.chat_id)}
-            </div>
-          </div>
-        </button>
-      </li>`
-    )
-    .join('');
-  list.querySelectorAll<HTMLButtonElement>('.task-item').forEach((btn) => {
-    btn.addEventListener('click', () => openDetail(btn.dataset.id!));
-  });
-}
-
-function chatLabel(chatId: string) {
-  const c = state.chats.find((x) => x.id === chatId);
-  return c ? ` · # ${escapeHtml(c.name)}` : '';
-}
-
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-}
-
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return d.toLocaleDateString();
-}
-
-// ---------- Selection ----------
-function selectProject(id: string) {
-  state.currentProjectId = id;
-  state.currentChatId = null;
-  renderProjects();
-  renderChats();
-  renderTasks();
-  syncFab();
-  if (window.matchMedia('(max-width: 767px)').matches) closeSidebar();
-}
-
-function selectChat(id: string) {
-  state.currentChatId = state.currentChatId === id ? null : id;
-  renderChats();
-  renderTasks();
-  syncFab();
-  if (window.matchMedia('(max-width: 767px)').matches) closeSidebar();
-}
-
-// ---------- CRUD ----------
-async function createProject() {
-  const name = prompt('Project name?');
-  if (!name) return;
-  const { data, error } = await sb.from('projects').insert({ name }).select().single();
-  if (error) return alert(error.message);
-  state.projects.unshift(data);
-  selectProject(data.id);
-}
-
-function openChatModal() {
-  if (!state.currentProjectId) return;
-  const sel = $<HTMLSelectElement>('chat-session');
-  const sessions = [...state.sessions].sort(
-    (a, b) => new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime(),
-  );
-  sel.innerHTML =
-    `<option value="">— None (fresh session) —</option>` +
-    sessions
-      .map((s) => {
-        const preview = (s.preview ?? '').slice(0, 70).replace(/\s+/g, ' ').trim();
-        const when = relDate(s.last_activity_at);
-        const title = preview || '(no preview)';
-        return `<option value="${s.session_id}" data-dir="${escapeAttr(s.project_dir)}" data-label="${escapeAttr(s.project_label)}">${escapeHtml(s.project_label)}  —  ${escapeHtml(title)}${preview.length >= 70 ? '…' : ''}  ·  ${when}</option>`;
-      })
-      .join('');
-
-  // Folder dropdown: unique dirs from sessions + current project's dir
-  const dirSelect = $<HTMLSelectElement>('chat-dir-select');
-  const dirs = new Map<string, string>();
-  const currentProject = state.projects.find((p) => p.id === state.currentProjectId);
-  if (currentProject?.working_dir) dirs.set(currentProject.working_dir, currentProject.name);
-  for (const s of sessions) if (!dirs.has(s.project_dir)) dirs.set(s.project_dir, s.project_label);
-
-  dirSelect.innerHTML =
-    `<option value="">— None —</option>` +
-    Array.from(dirs.entries())
-      .map(
-        ([dir, label]) =>
-          `<option value="${escapeAttr(dir)}">${escapeHtml(label)} — ${escapeHtml(dir)}</option>`,
-      )
-      .join('') +
-    `<option value="__custom__">Custom path…</option>`;
-  if (currentProject?.working_dir) dirSelect.value = currentProject.working_dir;
-
-  ($('chat-name') as HTMLInputElement).value = '';
-  ($('chat-working-dir') as HTMLInputElement).value = currentProject?.working_dir ?? '';
-  $('chat-working-dir').classList.add('hidden');
-  sel.onchange = onSessionPick;
-  dirSelect.onchange = onDirPick;
-  $('chat-modal').classList.remove('hidden');
-}
-
-function onDirPick(e: Event) {
-  const sel = e.target as HTMLSelectElement;
-  const custom = $<HTMLInputElement>('chat-working-dir');
-  if (sel.value === '__custom__') {
-    custom.classList.remove('hidden');
-    custom.value = '';
-    custom.focus();
-  } else {
-    custom.classList.add('hidden');
-    custom.value = sel.value;
-  }
-}
-
-function onSessionPick(e: Event) {
-  const opt = (e.target as HTMLSelectElement).selectedOptions[0];
-  const dir = opt?.dataset.dir ?? '';
-  const label = opt?.dataset.label ?? '';
-  if (dir) {
-    const dirSelect = $<HTMLSelectElement>('chat-dir-select');
-    // Ensure option exists, then select
-    let exists = Array.from(dirSelect.options).some((o) => o.value === dir);
-    if (!exists) {
-      const opt = document.createElement('option');
-      opt.value = dir;
-      opt.textContent = `${label} — ${dir}`;
-      dirSelect.insertBefore(opt, dirSelect.lastElementChild!);
-    }
-    dirSelect.value = dir;
-    ($('chat-working-dir') as HTMLInputElement).value = dir;
-    ($('chat-working-dir') as HTMLInputElement).classList.add('hidden');
-  }
-  if (!($('chat-name') as HTMLInputElement).value && label) {
-    ($('chat-name') as HTMLInputElement).value = label;
-  }
 }
 
 function relDate(iso: string) {
   const d = new Date(iso).getTime();
   const diff = Date.now() - d;
   const day = 86_400_000;
-  if (diff < 3_600_000) return `${Math.max(1, Math.floor(diff / 60_000))}m ago`;
-  if (diff < day) return `${Math.floor(diff / 3_600_000)}h ago`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < day) return `${Math.floor(diff / 3_600_000)}h`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d`;
   return new Date(iso).toLocaleDateString();
 }
 
-async function createChat() {
-  if (!state.currentProjectId) return;
-  const name = ($('chat-name') as HTMLInputElement).value.trim();
-  const session_id = ($('chat-session') as HTMLSelectElement).value || null;
-  const working_dir = ($('chat-working-dir') as HTMLInputElement).value.trim() || null;
-  if (!name) return alert('Name required.');
-  const { data, error } = await sb
-    .from('chats')
-    .insert({ project_id: state.currentProjectId, name, claude_session_id: session_id, working_dir })
-    .select()
-    .single();
-  if (error) return alert(error.message);
-  state.chats.unshift(data);
-  $('chat-modal').classList.add('hidden');
-  selectChat(data.id);
+// ---------- Rendering: Tasks feed ----------
+function renderTasks() {
+  const ul = $('tasks-feed');
+  const empty = $('tasks-empty');
+  const q = state.searchQuery.toLowerCase();
+  const tasks = state.tasks
+    .filter((t) => {
+      if (!q) return true;
+      return (t.title + ' ' + t.instructions + ' ' + (t.result ?? '')).toLowerCase().includes(q);
+    })
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  if (tasks.length === 0) {
+    ul.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  ul.classList.remove('hidden');
+
+  ul.innerHTML = tasks
+    .map((t) => {
+      const chat = state.chats.find((c) => c.id === t.chat_id);
+      const project = chat ? state.projects.find((p) => p.id === chat.project_id) : null;
+      const preview = t.result
+        ? t.result.slice(0, 180).replace(/\s+/g, ' ')
+        : t.instructions.slice(0, 180).replace(/\s+/g, ' ');
+      const projectBit = project ? `<span class="truncate">${escapeHtml(project.name)}</span>` : '';
+      const chatBit = chat?.claude_session_id
+        ? `<span class="text-accent">⎋</span>`
+        : '';
+      return `
+      <li>
+        <button data-id="${t.id}" class="task-item w-full text-left card px-4 py-3 active:bg-bg-elevated transition-colors">
+          <div class="flex items-start gap-3">
+            <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline justify-between gap-2">
+                <div class="text-sm font-medium truncate">${escapeHtml(t.title)}</div>
+                <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(t.updated_at)}</div>
+              </div>
+              <div class="text-xs text-fg-muted line-clamp-2 mt-0.5">${escapeHtml(preview)}</div>
+              <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5">
+                <span class="uppercase tracking-wide">${t.status}</span>
+                ${projectBit ? '<span>·</span>' + projectBit : ''}
+                ${chatBit}
+              </div>
+            </div>
+          </div>
+        </button>
+      </li>`;
+    })
+    .join('');
+
+  ul.querySelectorAll<HTMLButtonElement>('.task-item').forEach((btn) => {
+    btn.addEventListener('click', () => openDetail(btn.dataset.id!));
+  });
 }
 
-function escapeAttr(s: string) {
-  return s.replace(/"/g, '&quot;');
+// ---------- Rendering: Projects feed ----------
+function renderProjects() {
+  const ul = $('projects-feed');
+  const q = state.searchQuery.toLowerCase();
+  const projects = state.projects
+    .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.working_dir ?? '').toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (projects.length === 0) {
+    ul.innerHTML = `<li class="text-center text-fg-dim text-sm py-12">No projects.</li>`;
+    return;
+  }
+
+  ul.innerHTML = projects
+    .map((p) => {
+      const chatCount = state.chats.filter((c) => c.project_id === p.id).length;
+      const taskCount = state.tasks.filter((t) => t.project_id === p.id).length;
+      const running = state.tasks.filter((t) => t.project_id === p.id && t.status === 'running').length;
+      return `
+      <li>
+        <button data-id="${p.id}" class="project-item w-full text-left card px-4 py-3 active:bg-bg-elevated">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium truncate flex items-center gap-1.5">
+                ${escapeHtml(p.name)}
+                ${p.source === 'claude_code' ? '<span class="text-[10px] text-accent">⎋ CC</span>' : ''}
+              </div>
+              ${p.working_dir ? `<div class="text-[11px] text-fg-dim font-mono truncate mt-0.5">${escapeHtml(p.working_dir)}</div>` : ''}
+              <div class="text-[11px] text-fg-muted mt-1">${chatCount} chats · ${taskCount} tasks</div>
+            </div>
+            ${running > 0 ? '<span class="status-dot status-running flex-shrink-0"></span>' : ''}
+          </div>
+        </button>
+      </li>`;
+    })
+    .join('');
+
+  ul.querySelectorAll<HTMLButtonElement>('.project-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = state.projects.find((x) => x.id === btn.dataset.id);
+      if (!p) return;
+      // Pre-select project as target and open task modal
+      state.target = {
+        kind: 'project',
+        project_id: p.id,
+        label: p.name,
+        sub: p.working_dir ?? 'no folder',
+        working_dir: p.working_dir,
+      };
+      applyTarget();
+      openTaskModal();
+    });
+  });
 }
 
+// ---------- Rendering: Sessions feed ----------
+function renderSessions() {
+  const ul = $('sessions-feed');
+  const q = state.searchQuery.toLowerCase();
+  const sessions = state.sessions
+    .filter(
+      (s) =>
+        !q ||
+        s.project_label.toLowerCase().includes(q) ||
+        s.project_dir.toLowerCase().includes(q) ||
+        (s.preview ?? '').toLowerCase().includes(q),
+    )
+    .sort((a, b) => new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime());
+
+  if (sessions.length === 0) {
+    ul.innerHTML = `<li class="text-center text-fg-dim text-sm py-12">No Claude Code sessions found.</li>`;
+    return;
+  }
+
+  ul.innerHTML = sessions
+    .map((s) => {
+      const preview = (s.preview ?? '(no preview)').slice(0, 140).replace(/\s+/g, ' ');
+      return `
+      <li>
+        <button data-sid="${s.session_id}" class="session-item w-full text-left card px-4 py-3 active:bg-bg-elevated">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <div class="text-sm font-medium truncate">${escapeHtml(s.project_label)}</div>
+            <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(s.last_activity_at)}</div>
+          </div>
+          <div class="text-xs text-fg-muted line-clamp-2">${escapeHtml(preview)}</div>
+          <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <span>⎋ ${s.session_id.slice(0, 8)}</span>
+            <span>·</span>
+            <span>${s.message_count} msg</span>
+          </div>
+        </button>
+      </li>`;
+    })
+    .join('');
+
+  ul.querySelectorAll<HTMLButtonElement>('.session-item').forEach((btn) => {
+    btn.addEventListener('click', () => pickSessionAsTarget(btn.dataset.sid!));
+  });
+}
+
+function pickSessionAsTarget(session_id: string) {
+  const s = state.sessions.find((x) => x.session_id === session_id);
+  if (!s) return;
+  // Find (or will find at submit time) the chat for this session
+  const chat = state.chats.find((c) => c.claude_session_id === session_id);
+  state.target = {
+    kind: 'session',
+    session_id,
+    chat_id: chat?.id,
+    project_id: chat?.project_id,
+    label: s.project_label,
+    sub: s.project_dir,
+    working_dir: s.project_dir,
+  };
+  applyTarget();
+  openTaskModal();
+}
+
+// ---------- Desktop sidebar rendering ----------
+function renderDesktopSidebar() {
+  const ul = $('project-list-desktop');
+  if (!ul) return;
+  ul.innerHTML = state.projects
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (p) => `
+      <li>
+        <button data-id="${p.id}" class="dproject-item w-full text-left px-2 py-1.5 rounded text-sm text-fg-muted hover:bg-bg-elevated hover:text-fg truncate">
+          ${escapeHtml(p.name)}
+        </button>
+      </li>`,
+    )
+    .join('');
+  ul.querySelectorAll<HTMLButtonElement>('.dproject-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = state.projects.find((x) => x.id === btn.dataset.id);
+      if (!p) return;
+      state.target = { kind: 'project', project_id: p.id, label: p.name, sub: p.working_dir ?? '', working_dir: p.working_dir };
+      applyTarget();
+      openTaskModal();
+    });
+  });
+}
+
+// ---------- View switching ----------
+function setTab(tab: Tab) {
+  state.tab = tab;
+  ['tasks', 'projects', 'sessions'].forEach((t) => {
+    $(`view-${t}`).classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((b) => {
+    const active = b.dataset.tab === tab;
+    b.classList.toggle('text-accent', active);
+    b.classList.toggle('text-fg-muted', !active);
+  });
+  $('view-title').textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
+  $('search-input') && (($('search-input') as HTMLInputElement).placeholder = `Search ${tab}…`);
+  renderAll();
+}
+
+function renderAll() {
+  if (state.tab === 'tasks') renderTasks();
+  else if (state.tab === 'projects') renderProjects();
+  else if (state.tab === 'sessions') renderSessions();
+  renderDesktopSidebar();
+}
+
+// ---------- Task modal ----------
 function openTaskModal() {
-  if (!state.currentProjectId) return;
-  const chats = state.chats.filter((c) => c.project_id === state.currentProjectId);
-  if (chats.length === 0) return alert('Create a chat first.');
-  const select = $<HTMLSelectElement>('task-chat');
-  select.innerHTML = chats.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  if (state.currentChatId) select.value = state.currentChatId;
   ($('task-title') as HTMLInputElement).value = '';
   ($('task-instructions') as HTMLTextAreaElement).value = '';
+  applyTarget();
   $('task-modal').classList.remove('hidden');
+  setTimeout(() => ($('task-instructions') as HTMLTextAreaElement).focus(), 100);
 }
 
-async function createTask() {
-  const chat_id = ($('task-chat') as HTMLSelectElement).value;
-  const title = ($('task-title') as HTMLInputElement).value.trim();
-  const instructions = ($('task-instructions') as HTMLTextAreaElement).value.trim();
-  if (!chat_id || !title || !instructions) return alert('All fields required.');
-  const { error } = await sb
-    .from('tasks')
-    .insert({ project_id: state.currentProjectId!, chat_id, title, instructions });
-  if (error) return alert(error.message);
+function closeTaskModal() {
   $('task-modal').classList.add('hidden');
 }
 
+function applyTarget() {
+  const label = $('target-label');
+  const sub = $('target-sub');
+  if (state.target) {
+    label.textContent = state.target.label;
+    sub.textContent = state.target.sub || (state.target.kind === 'session' ? '⎋ Claude Code session' : '');
+  } else {
+    label.textContent = 'Choose a session or project';
+    sub.textContent = 'Tap to pick';
+  }
+}
+
+// ---------- Target picker modal ----------
+function openTargetModal() {
+  renderTargetList();
+  $('target-modal').classList.remove('hidden');
+  ($('target-search') as HTMLInputElement).value = '';
+  setTimeout(() => ($('target-search') as HTMLInputElement).focus(), 100);
+}
+
+function closeTargetModal() {
+  $('target-modal').classList.add('hidden');
+}
+
+function renderTargetList() {
+  const q = (($('target-search') as HTMLInputElement)?.value ?? '').toLowerCase();
+  const list = $('target-list');
+  const sessions = state.sessions
+    .filter(
+      (s) =>
+        !q ||
+        s.project_label.toLowerCase().includes(q) ||
+        s.project_dir.toLowerCase().includes(q) ||
+        (s.preview ?? '').toLowerCase().includes(q),
+    )
+    .sort((a, b) => new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime())
+    .slice(0, 50);
+
+  const projects = state.projects
+    .filter((p) => !q || p.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 20);
+
+  list.innerHTML = `
+    <div class="text-[10px] uppercase tracking-wider text-fg-muted px-3 py-2">Claude Code sessions</div>
+    ${sessions
+      .map(
+        (s) => `
+      <button data-sid="${s.session_id}" class="target-opt w-full text-left px-3 py-2.5 rounded-md hover:bg-bg-elevated active:bg-bg-elevated">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-sm font-medium truncate">${escapeHtml(s.project_label)}</div>
+          <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(s.last_activity_at)}</div>
+        </div>
+        <div class="text-[11px] text-fg-muted truncate mt-0.5">${escapeHtml((s.preview ?? '').slice(0, 80))}</div>
+      </button>`,
+      )
+      .join('')}
+    <div class="text-[10px] uppercase tracking-wider text-fg-muted px-3 py-2 mt-3">Projects</div>
+    ${projects
+      .map(
+        (p) => `
+      <button data-pid="${p.id}" class="target-opt w-full text-left px-3 py-2.5 rounded-md hover:bg-bg-elevated active:bg-bg-elevated">
+        <div class="text-sm font-medium truncate">${escapeHtml(p.name)}</div>
+        ${p.working_dir ? `<div class="text-[11px] text-fg-dim font-mono truncate mt-0.5">${escapeHtml(p.working_dir)}</div>` : ''}
+      </button>`,
+      )
+      .join('')}
+    <button data-new-project="1" class="target-opt w-full text-left px-3 py-2.5 rounded-md hover:bg-bg-elevated active:bg-bg-elevated mt-3 border border-dashed border-border">
+      <div class="text-sm font-medium text-accent">+ New project</div>
+      <div class="text-[11px] text-fg-muted mt-0.5">Create a blank project</div>
+    </button>
+  `;
+
+  list.querySelectorAll<HTMLButtonElement>('.target-opt').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.newProject) {
+        const name = prompt('Project name?');
+        if (!name) return;
+        const { data, error } = await sb.from('projects').insert({ name }).select().single();
+        if (error) return alert(error.message);
+        state.target = { kind: 'project', project_id: data.id, label: data.name, sub: '', working_dir: null };
+      } else if (btn.dataset.sid) {
+        const s = state.sessions.find((x) => x.session_id === btn.dataset.sid);
+        if (!s) return;
+        const chat = state.chats.find((c) => c.claude_session_id === s.session_id);
+        state.target = {
+          kind: 'session',
+          session_id: s.session_id,
+          chat_id: chat?.id,
+          project_id: chat?.project_id,
+          label: s.project_label,
+          sub: s.project_dir,
+          working_dir: s.project_dir,
+        };
+      } else if (btn.dataset.pid) {
+        const p = state.projects.find((x) => x.id === btn.dataset.pid);
+        if (!p) return;
+        state.target = { kind: 'project', project_id: p.id, label: p.name, sub: p.working_dir ?? '', working_dir: p.working_dir };
+      }
+      applyTarget();
+      closeTargetModal();
+    });
+  });
+}
+
+// ---------- Submit task ----------
+async function submitTask() {
+  const instructions = ($('task-instructions') as HTMLTextAreaElement).value.trim();
+  if (!instructions) return alert('Write a prompt first.');
+  if (!state.target) return alert('Pick a target (session or project).');
+
+  let title = ($('task-title') as HTMLInputElement).value.trim();
+  if (!title) {
+    title = instructions.split('\n')[0].slice(0, 80).trim() || 'Untitled task';
+  }
+
+  let chat_id = state.target.chat_id;
+  let project_id = state.target.project_id;
+
+  // If session picked but no chat yet, create one
+  if (state.target.kind === 'session' && !chat_id) {
+    const session_id = state.target.session_id!;
+    // Find or create project matching working_dir
+    if (!project_id) {
+      const existingProj = state.projects.find((p) => p.working_dir === state.target!.working_dir);
+      if (existingProj) project_id = existingProj.id;
+      else {
+        const { data, error } = await sb
+          .from('projects')
+          .insert({ name: state.target.label, working_dir: state.target.working_dir ?? null, source: 'claude_code' })
+          .select()
+          .single();
+        if (error) return alert(error.message);
+        project_id = data.id;
+      }
+    }
+    const { data, error } = await sb
+      .from('chats')
+      .insert({
+        project_id: project_id!,
+        name: state.target.label,
+        claude_session_id: session_id,
+        working_dir: state.target.working_dir ?? null,
+      })
+      .select()
+      .single();
+    if (error) return alert(error.message);
+    chat_id = data.id;
+  }
+
+  // If only project picked, pick or create default chat under it
+  if (!chat_id && project_id) {
+    let chat = state.chats.find((c) => c.project_id === project_id && !c.claude_session_id);
+    if (!chat) {
+      const project = state.projects.find((p) => p.id === project_id);
+      const { data, error } = await sb
+        .from('chats')
+        .insert({
+          project_id,
+          name: 'default',
+          working_dir: project?.working_dir ?? null,
+        })
+        .select()
+        .single();
+      if (error) return alert(error.message);
+      chat = data;
+    }
+    chat_id = chat!.id;
+  }
+
+  if (!chat_id || !project_id) return alert('Could not resolve target.');
+
+  const { error } = await sb.from('tasks').insert({ project_id, chat_id, title, instructions });
+  if (error) return alert(error.message);
+
+  closeTaskModal();
+  state.target = null;
+  setTab('tasks');
+}
+
+// ---------- Task detail ----------
 function openDetail(taskId: string) {
   const t = state.tasks.find((x) => x.id === taskId);
   if (!t) return;
   $('detail-title').textContent = t.title;
-  $('detail-meta').textContent = `${t.status.toUpperCase()} · ${formatTime(t.updated_at)}`;
+  $('detail-meta').textContent = `${t.status.toUpperCase()} · ${relDate(t.updated_at)}`;
   $('detail-instructions').textContent = t.instructions;
   $('detail-result').textContent = t.result ?? '—';
   const errWrap = $('detail-error-wrap');
@@ -334,7 +481,7 @@ function openDetail(taskId: string) {
   $('detail-modal').dataset.taskId = taskId;
 }
 
-// ---------- Loading + Realtime ----------
+// ---------- Load + Realtime ----------
 async function load() {
   const [projects, chats, tasks, sessions] = await Promise.all([
     sb.from('projects').select('*').order('created_at', { ascending: false }),
@@ -342,18 +489,11 @@ async function load() {
     sb.from('tasks').select('*').order('created_at', { ascending: false }),
     sb.from('claude_sessions').select('*').order('last_activity_at', { ascending: false }),
   ]);
-  if (projects.error) console.error(projects.error);
-  if (chats.error) console.error(chats.error);
-  if (tasks.error) console.error(tasks.error);
-  if (sessions.error) console.error(sessions.error);
   state.projects = projects.data ?? [];
   state.chats = chats.data ?? [];
   state.tasks = tasks.data ?? [];
   state.sessions = sessions.data ?? [];
-  if (!state.currentProjectId && state.projects[0]) state.currentProjectId = state.projects[0].id;
-  renderProjects();
-  renderChats();
-  renderTasks();
+  renderAll();
 }
 
 function subscribeRealtime() {
@@ -361,12 +501,11 @@ function subscribeRealtime() {
 
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
     applyChange(state.projects, payload);
-    renderProjects();
+    renderAll();
   });
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, (payload) => {
     applyChange(state.chats, payload);
-    renderChats();
-    renderTasks();
+    renderAll();
   });
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claude_sessions' }, (payload) => {
     const row = (payload.new ?? payload.old) as ClaudeSession;
@@ -375,20 +514,20 @@ function subscribeRealtime() {
       if (idx >= 0) state.sessions.splice(idx, 1);
     } else if (idx >= 0) state.sessions[idx] = payload.new as ClaudeSession;
     else state.sessions.unshift(payload.new as ClaudeSession);
+    renderAll();
   });
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
     applyChange(state.tasks, payload);
-    renderTasks();
+    renderAll();
     const detailModal = $('detail-modal');
     if (!detailModal.classList.contains('hidden') && detailModal.dataset.taskId === (payload.new as any)?.id) {
       openDetail((payload.new as any).id);
     }
-    setWorkerStatus(state.tasks.some((t) => t.status === 'running') ? 'active' : 'idle');
+    setStatus(state.tasks.some((t) => t.status === 'running') ? 'running task…' : 'idle');
   });
 
   ch.subscribe((status) => {
-    console.log('[realtime]', status);
-    if (status === 'SUBSCRIBED') setWorkerStatus('idle');
+    if (status === 'SUBSCRIBED') setStatus('connected');
   });
 }
 
@@ -405,55 +544,61 @@ function applyChange<T extends { id: string }>(arr: T[], payload: any) {
   }
 }
 
-function setWorkerStatus(s: 'active' | 'idle' | 'unknown') {
-  const label = s === 'active' ? 'running task…' : s === 'idle' ? 'connected' : 'unknown';
-  $('worker-status').textContent = `realtime: ${label}`;
+function setStatus(s: string) {
+  document.querySelectorAll('[data-worker]').forEach((el) => (el.textContent = `realtime: ${s}`));
+  const dsk = $('worker-status-desktop');
+  if (dsk) dsk.textContent = `realtime: ${s}`;
 }
 
 // ---------- Wire up ----------
-// Sidebar drawer (mobile)
-function openSidebar() {
-  $('sidebar').classList.remove('-translate-x-full');
-  const ov = $('sidebar-overlay');
-  ov.classList.remove('hidden');
-  ov.classList.add('flex');
-}
-function closeSidebar() {
-  $('sidebar').classList.add('-translate-x-full');
-  const ov = $('sidebar-overlay');
-  ov.classList.add('hidden');
-  ov.classList.remove('flex');
-}
-$('sidebar-open')?.addEventListener('click', openSidebar);
-$('sidebar-close')?.addEventListener('click', closeSidebar);
-$('sidebar-overlay')?.addEventListener('click', closeSidebar);
-
-// Show FAB on mobile when project selected
-function syncFab() {
-  const fab = $('fab-new-task');
-  const visible = !!state.currentProjectId && state.chats.some((c) => c.project_id === state.currentProjectId);
-  fab.classList.toggle('hidden', !visible);
-  fab.classList.toggle('md:hidden', true);
-}
-$('fab-new-task')?.addEventListener('click', openTaskModal);
-
-$('new-project-btn').addEventListener('click', createProject);
-$('new-chat-btn').addEventListener('click', openChatModal);
-$('chat-cancel').addEventListener('click', () => $('chat-modal').classList.add('hidden'));
-$('chat-cancel-x')?.addEventListener('click', () => $('chat-modal').classList.add('hidden'));
-$('chat-create').addEventListener('click', createChat);
-$('chat-modal').addEventListener('click', (e) => {
-  if (e.target === $('chat-modal')) $('chat-modal').classList.add('hidden');
+document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => setTab(btn.dataset.tab as Tab));
 });
-$('new-task-btn').addEventListener('click', openTaskModal);
-$('task-cancel').addEventListener('click', () => $('task-modal').classList.add('hidden'));
-$('task-cancel-x')?.addEventListener('click', () => $('task-modal').classList.add('hidden'));
-$('task-create').addEventListener('click', createTask);
+
+$('fab-new-task').addEventListener('click', openTaskModal);
+$('desktop-new-task')?.addEventListener('click', openTaskModal);
+$('task-close').addEventListener('click', closeTaskModal);
+$('task-create').addEventListener('click', submitTask);
+$('task-modal').addEventListener('click', (e) => {
+  if (e.target === $('task-modal')) closeTaskModal();
+});
+
+$('target-selected').addEventListener('click', openTargetModal);
+$('target-close').addEventListener('click', closeTargetModal);
+$('target-search').addEventListener('input', renderTargetList);
+$('target-modal').addEventListener('click', (e) => {
+  if (e.target === $('target-modal')) closeTargetModal();
+});
+
 $('detail-close').addEventListener('click', () => $('detail-modal').classList.add('hidden'));
-[$('task-modal'), $('detail-modal')].forEach((m) => {
-  m.addEventListener('click', (e) => {
-    if (e.target === m) m.classList.add('hidden');
-  });
+$('detail-modal').addEventListener('click', (e) => {
+  if (e.target === $('detail-modal')) $('detail-modal').classList.add('hidden');
 });
 
-load().then(() => { subscribeRealtime(); syncFab(); });
+$('search-toggle').addEventListener('click', () => {
+  state.searchOpen = !state.searchOpen;
+  $('search-bar').classList.toggle('hidden', !state.searchOpen);
+  if (state.searchOpen) setTimeout(() => ($('search-input') as HTMLInputElement).focus(), 50);
+  else {
+    state.searchQuery = '';
+    ($('search-input') as HTMLInputElement).value = '';
+    renderAll();
+  }
+});
+$('search-input').addEventListener('input', (e) => {
+  state.searchQuery = (e.target as HTMLInputElement).value;
+  renderAll();
+});
+
+$('new-project-btn-desktop')?.addEventListener('click', async () => {
+  const name = prompt('Project name?');
+  if (!name) return;
+  const { error } = await sb.from('projects').insert({ name });
+  if (error) alert(error.message);
+});
+
+// Re-render "time ago" every minute
+setInterval(() => renderAll(), 60_000);
+
+setTab('tasks');
+load().then(subscribeRealtime);
