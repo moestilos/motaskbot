@@ -61,6 +61,17 @@ export default {
         shimmer: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.7' } },
         rotateSlow: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
         bounceSoft: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
+        meshShift: {
+          '0%': { opacity: '1' },
+          '25%': { opacity: '0.8' },
+          '50%': { opacity: '1' },
+          '75%': { opacity: '0.85' },
+          '100%': { opacity: '1' },
+        },
+        orbGlow: {
+          '0%, 100%': { filter: 'blur(80px)' },
+          '50%': { filter: 'blur(60px)' },
+        },
       },
     },
   },
