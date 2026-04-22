@@ -17,6 +17,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || undefined;
 const CLAUDE_CLI = process.env.CLAUDE_CLI || 'claude';
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 5000);
+const MOTASKBOT_EMAIL = process.env.MOTASKBOT_EMAIL;
+const MOTASKBOT_PASSWORD = process.env.MOTASKBOT_PASSWORD;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   log.error('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env');
@@ -24,6 +26,22 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 }
 
 const sb: MoTaskBotClient = createServerClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function ensureAuth() {
+  if (!MOTASKBOT_EMAIL || !MOTASKBOT_PASSWORD) {
+    log.warn('MOTASKBOT_EMAIL/PASSWORD not set — worker will rely on raw key (may fail if RLS locked)');
+    return;
+  }
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: MOTASKBOT_EMAIL,
+    password: MOTASKBOT_PASSWORD,
+  });
+  if (error || !data.session) {
+    log.error('worker sign-in failed', error?.message ?? 'no session');
+    process.exit(1);
+  }
+  log.info(`worker authenticated as ${MOTASKBOT_EMAIL}`);
+}
 
 const claudeConfig = { apiKey: ANTHROPIC_API_KEY, cliPath: CLAUDE_CLI };
 log.info('claude backend', ANTHROPIC_API_KEY ? 'Anthropic API' : `CLI (${CLAUDE_CLI})`);
@@ -137,6 +155,7 @@ function subscribe() {
 
 async function main() {
   log.info('starting MoTaskBot worker', { url: SUPABASE_URL });
+  await ensureAuth();
   startSessionScanner(sb, 30_000);
   await drainPending();
   subscribe();

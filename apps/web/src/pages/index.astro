@@ -2,7 +2,32 @@
 import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="MoTaskBot">
-  <div class="flex flex-col md:flex-row h-[100dvh] overflow-hidden relative">
+  <!-- Login screen -->
+  <div id="login-screen" class="hidden fixed inset-0 z-[100] bg-bg flex items-center justify-center p-6">
+    <form id="login-form" class="card w-full max-w-sm p-6 space-y-4">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 rounded-md bg-accent flex items-center justify-center text-white font-bold">M</div>
+        <div>
+          <div class="text-base font-semibold">MoTaskBot</div>
+          <div class="text-xs text-fg-muted">Sign in to continue</div>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-fg-muted mb-1 block">Email</label>
+          <input id="login-email" class="input" type="email" autocomplete="email" autocapitalize="off" autocorrect="off" required />
+        </div>
+        <div>
+          <label class="text-xs text-fg-muted mb-1 block">Password</label>
+          <input id="login-password" class="input" type="password" autocomplete="current-password" required />
+        </div>
+      </div>
+      <div id="login-error" class="hidden text-xs text-status-failed"></div>
+      <button type="submit" id="login-submit" class="btn-primary w-full justify-center py-3 text-base font-semibold">Sign in</button>
+    </form>
+  </div>
+
+  <div id="app-root" class="flex flex-col md:flex-row h-[100dvh] overflow-hidden relative hidden">
 
     <!-- Desktop sidebar (hidden on mobile) -->
     <aside class="hidden md:flex w-72 border-r border-border bg-bg-raised flex-col">
@@ -80,6 +105,8 @@ import Layout from '../layouts/Layout.astro';
 
       <!-- Desktop "+" button -->
       <button id="desktop-new-task" class="hidden md:inline-flex btn-primary fixed bottom-5 right-5 z-30">+ New Task</button>
+
+      <button id="logout-btn" class="hidden md:inline-flex btn-ghost fixed top-3 right-5 text-xs">Sign out</button>
 
       <!-- Bottom tab bar (mobile only) -->
       <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised border-t border-border pb-[env(safe-area-inset-bottom)]">

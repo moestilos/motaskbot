@@ -600,5 +600,53 @@ $('new-project-btn-desktop')?.addEventListener('click', async () => {
 // Re-render "time ago" every minute
 setInterval(() => renderAll(), 60_000);
 
-setTab('tasks');
-load().then(subscribeRealtime);
+// ---------- Auth gate ----------
+async function initAuth() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) showApp();
+  else showLogin();
+
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') showLogin();
+    if (event === 'SIGNED_IN') showApp();
+  });
+}
+
+function showApp() {
+  $('login-screen').classList.add('hidden');
+  $('app-root').classList.remove('hidden');
+  if (!(window as any).__motaskbot_loaded) {
+    (window as any).__motaskbot_loaded = true;
+    setTab('tasks');
+    load().then(subscribeRealtime);
+  }
+}
+
+function showLogin() {
+  $('app-root').classList.add('hidden');
+  $('login-screen').classList.remove('hidden');
+}
+
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = ($('login-email') as HTMLInputElement).value.trim();
+  const password = ($('login-password') as HTMLInputElement).value;
+  const errEl = $('login-error');
+  errEl.classList.add('hidden');
+  const submit = $('login-submit') as HTMLButtonElement;
+  submit.disabled = true;
+  submit.textContent = 'Signing in…';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  submit.disabled = false;
+  submit.textContent = 'Sign in';
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+  }
+});
+
+$('logout-btn')?.addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+initAuth();
