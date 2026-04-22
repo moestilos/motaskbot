@@ -12,7 +12,7 @@ if (!url || !anon) {
 }
 ---
 <!doctype html>
-<html lang="en" class="dark h-full">
+<html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -24,6 +24,8 @@ if (!url || !anon) {
     <title>{title}</title>
     <script is:inline define:vars={{ url, anon }}>
       window.__MOTASKBOT_ENV__ = { url, anon };
+      const theme = localStorage.getItem('motaskbot-theme') || 'dark';
+      document.documentElement.dataset.theme = theme;
     </script>
   </head>
   <body class="h-full">

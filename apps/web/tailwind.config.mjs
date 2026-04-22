@@ -6,28 +6,28 @@ export default {
     extend: {
       colors: {
         bg: {
-          DEFAULT: '#0a0a0b',
-          raised: '#111113',
-          elevated: '#17171a',
+          DEFAULT: 'rgb(var(--color-bg) / <alpha-value>)',
+          raised: 'rgb(var(--color-bg-raised) / <alpha-value>)',
+          elevated: 'rgb(var(--color-bg-elevated) / <alpha-value>)',
         },
         border: {
-          DEFAULT: '#26262b',
-          subtle: '#1c1c20',
+          DEFAULT: 'rgb(var(--color-border) / <alpha-value>)',
+          subtle: 'rgb(var(--color-border-subtle) / <alpha-value>)',
         },
         fg: {
-          DEFAULT: '#e6e6e8',
-          muted: '#8a8a94',
-          dim: '#5a5a62',
+          DEFAULT: 'rgb(var(--color-fg) / <alpha-value>)',
+          muted: 'rgb(var(--color-fg-muted) / <alpha-value>)',
+          dim: 'rgb(var(--color-fg-dim) / <alpha-value>)',
         },
         accent: {
-          DEFAULT: '#7c5cff',
-          hover: '#6b4aef',
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
+          hover: 'rgb(var(--color-accent-hover) / <alpha-value>)',
         },
         status: {
-          pending: '#6a6a72',
-          running: '#e3b341',
-          completed: '#3fb950',
-          failed: '#f85149',
+          pending: 'rgb(var(--color-status-pending) / <alpha-value>)',
+          running: 'rgb(var(--color-status-running) / <alpha-value>)',
+          completed: 'rgb(var(--color-status-completed) / <alpha-value>)',
+          failed: 'rgb(var(--color-status-failed) / <alpha-value>)',
         },
       },
       fontFamily: {
@@ -45,6 +45,9 @@ export default {
         'float-delay-2': 'float 10s ease-in-out 2s infinite',
         'gradient-shift': 'gradientShift 8s ease-in-out infinite',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'shimmer': 'shimmer 2s ease-in-out infinite',
+        'rotate-slow': 'rotateSlow 20s linear infinite',
+        'bounce-soft': 'bounceSoft 3s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -55,6 +58,9 @@ export default {
         float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-20px)' } },
         gradientShift: { '0%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' }, '100%': { backgroundPosition: '0% 50%' } },
         glowPulse: { '0%, 100%': { boxShadow: '0 0 20px rgba(124, 92, 255, 0.3)' }, '50%': { boxShadow: '0 0 30px rgba(124, 92, 255, 0.6)' } },
+        shimmer: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.7' } },
+        rotateSlow: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+        bounceSoft: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
       },
     },
   },

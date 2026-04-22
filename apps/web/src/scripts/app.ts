@@ -24,6 +24,7 @@ const state = {
   searchOpen: false,
   searchQuery: '',
   target: null as Target | null,
+  theme: 'dark' as string,
 };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -550,6 +551,32 @@ function setStatus(s: string) {
   if (dsk) dsk.textContent = `realtime: ${s}`;
 }
 
+// ---------- Theme management ----------
+function loadTheme() {
+  const saved = localStorage.getItem('motaskbot-theme');
+  state.theme = saved || 'dark';
+  applyTheme(state.theme);
+}
+
+function applyTheme(theme: string) {
+  state.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('motaskbot-theme', theme);
+  const options = document.querySelectorAll<HTMLButtonElement>('.theme-option');
+  options.forEach(btn => {
+    btn.classList.toggle('border-accent bg-bg-elevated', btn.dataset.theme === theme);
+    btn.classList.toggle('border-border', btn.dataset.theme !== theme);
+  });
+}
+
+function openThemeModal() {
+  $('theme-modal').classList.remove('hidden');
+}
+
+function closeThemeModal() {
+  $('theme-modal').classList.add('hidden');
+}
+
 // ---------- Wire up ----------
 document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTab(btn.dataset.tab as Tab));
@@ -649,4 +676,17 @@ $('logout-btn')?.addEventListener('click', async () => {
   await sb.auth.signOut();
 });
 
+$('theme-toggle').addEventListener('click', openThemeModal);
+$('theme-close').addEventListener('click', closeThemeModal);
+document.querySelectorAll<HTMLButtonElement>('.theme-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+    applyTheme(btn.dataset.theme!);
+    closeThemeModal();
+  });
+});
+$('theme-modal').addEventListener('click', (e) => {
+  if (e.target === $('theme-modal')) closeThemeModal();
+});
+
+loadTheme();
 initAuth();
