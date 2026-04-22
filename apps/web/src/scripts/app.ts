@@ -305,6 +305,12 @@ function setTab(tab: Tab) {
   });
   $('view-title').textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
   $('search-input') && (($('search-input') as HTMLInputElement).placeholder = `Search ${tab}…`);
+  // Chat input bar is fixed-positioned and only shown on chat tab
+  const chatBar = document.getElementById('chat-input-bar');
+  if (chatBar) chatBar.classList.toggle('hidden', tab !== 'chat');
+  // Hide FAB on chat and usage (no "new task" context there)
+  const fab = document.getElementById('fab-new-task');
+  if (fab) fab.classList.toggle('hidden', tab === 'chat' || tab === 'usage');
   renderAll();
 }
 
@@ -372,7 +378,10 @@ function renderChatView() {
       </div>`;
     })
     .join('');
-  list.scrollTop = list.scrollHeight;
+  // Scroll the parent section (which is the scroll container)
+  const section = list.closest('section');
+  if (section) section.scrollTop = section.scrollHeight;
+  else list.scrollTop = list.scrollHeight;
 }
 
 async function sendChatMessage() {

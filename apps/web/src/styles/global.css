@@ -90,7 +90,11 @@ html[data-theme="dracula"] {
 
 @layer base {
   html, body {
-    @apply bg-bg text-fg font-sans antialiased h-full;
+    @apply bg-bg text-fg antialiased h-full;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     overscroll-behavior-y: none;
@@ -317,5 +321,69 @@ html[data-theme="dracula"] {
 
   #fab-new-task {
     box-shadow: 0 4px 20px rgb(var(--color-accent) / 0.4);
+  }
+
+  /* iOS safe-area helpers */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .top-safe { top: env(safe-area-inset-top); }
+
+  /* Bottom-sheet drag handle (iOS-style) */
+  .sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgb(var(--color-fg-dim));
+    opacity: 0.5;
+    margin: 8px auto 0;
+  }
+
+  /* Segmented control (iOS-style) */
+  .seg {
+    @apply inline-flex rounded-lg bg-bg-elevated p-0.5 gap-0.5;
+  }
+  .seg-btn {
+    @apply px-3 py-1.5 rounded-md text-xs font-medium text-fg-muted transition-all;
+  }
+  .seg-btn.active {
+    @apply bg-bg-raised text-fg;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* Mobile-specific tightening */
+  @media (max-width: 767px) {
+    .card {
+      border-radius: 16px;
+    }
+    /* Reduce heavy orb animations on phones for battery + perf */
+    .orb-3, .orb-4 { display: none; }
+    .orb-1 {
+      width: 260px; height: 260px;
+      top: -130px; right: -130px;
+    }
+    .orb-2 {
+      width: 220px; height: 220px;
+      bottom: -110px; left: -110px;
+    }
+    /* Kill hover lift on touch — it triggers on tap and feels janky */
+    li:hover { transform: none; }
+    .btn-primary:hover { transform: none; }
+    .card:hover { box-shadow: none; }
+  }
+
+  /* Hide scrollbar for horizontally-scrolling toolbars */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* Chip style for compact controls */
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-bg-elevated border border-border text-xs text-fg-muted;
+  }
+  .chip-select {
+    @apply chip pr-2 cursor-pointer;
+    background-image: none;
   }
 }

@@ -2,15 +2,15 @@
 import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="MoTaskBot">
-  <!-- iOS install banner -->
-  <div id="ios-install-banner" class="hidden fixed bottom-4 left-4 right-4 z-[90] card p-4 flex items-start gap-3 shadow-2xl md:hidden animate-slide-up">
-    <div class="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold flex-shrink-0">M</div>
-    <div class="flex-1 text-xs text-fg">
-      Add to Home Screen: tap
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-text-bottom"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-      Share, then <span class="text-accent font-medium">Add to Home Screen</span>.
+  <!-- iOS install banner (lives above bottom tab bar) -->
+  <div id="ios-install-banner" class="hidden fixed left-3 right-3 z-[90] card p-3 flex items-center gap-3 shadow-2xl md:hidden animate-slide-up" style="bottom: calc(env(safe-area-inset-bottom) + 76px);">
+    <div class="w-9 h-9 rounded-xl bg-accent flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">M</div>
+    <div class="flex-1 text-[12px] leading-snug text-fg">
+      Install: tap
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-text-bottom"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      Share → <span class="text-accent font-medium">Add to Home Screen</span>
     </div>
-    <button id="ios-banner-close" aria-label="Dismiss" class="btn-ghost !p-1 text-fg-muted">×</button>
+    <button id="ios-banner-close" aria-label="Dismiss" class="btn-ghost !p-1 text-fg-muted text-lg leading-none">×</button>
   </div>
 
   <!-- Login screen -->
@@ -70,18 +70,20 @@ import Layout from '../layouts/Layout.astro';
     <main class="flex-1 flex flex-col overflow-hidden">
 
       <!-- Top header (mobile + desktop) -->
-      <header class="px-4 md:px-6 py-3 border-b border-border flex items-center gap-3 bg-bg-raised md:bg-transparent min-h-[56px]">
-        <div class="md:hidden w-8 h-8 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
-        <div class="flex-1 min-w-0">
-          <h1 id="view-title" class="text-sm font-semibold truncate">Tasks</h1>
-          <p id="view-subtitle" class="text-[11px] text-fg-muted truncate" data-worker>realtime: connecting…</p>
+      <header class="pt-safe px-4 md:px-6 border-b border-border/70 bg-bg-raised/90 md:bg-transparent backdrop-blur-xl supports-[backdrop-filter]:bg-bg-raised/70 md:supports-[backdrop-filter]:bg-transparent sticky top-0 z-20">
+        <div class="flex items-center gap-2 md:gap-3 py-2.5 md:py-3 min-h-[52px]">
+          <div class="md:hidden w-9 h-9 rounded-xl bg-accent flex items-center justify-center text-white text-sm font-bold shadow-md shadow-accent/30">M</div>
+          <div class="flex-1 min-w-0">
+            <h1 id="view-title" class="text-[17px] md:text-sm font-semibold truncate leading-tight">Tasks</h1>
+            <p id="view-subtitle" class="text-[11px] text-fg-muted truncate leading-tight" data-worker>realtime: connecting…</p>
+          </div>
+          <button id="search-toggle" aria-label="Search" class="btn-ghost !p-2.5 min-h-[40px] min-w-[40px] rounded-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+          <button id="theme-toggle" aria-label="Theme" class="btn-ghost !p-2.5 min-h-[40px] min-w-[40px] rounded-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
         </div>
-        <button id="search-toggle" aria-label="Search" class="btn-ghost !p-3 min-h-[44px] min-w-[44px]">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-        <button id="theme-toggle" aria-label="Theme" class="btn-ghost !p-3 min-h-[44px] min-w-[44px]">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
       </header>
 
       <!-- Search bar (collapsible) -->
@@ -90,22 +92,22 @@ import Layout from '../layouts/Layout.astro';
       </div>
 
       <!-- Content area (tab switched) -->
-      <section class="flex-1 overflow-y-auto pb-24 md:pb-4">
+      <section class="flex-1 overflow-y-auto pb-24 md:pb-4" style="padding-bottom: calc(env(safe-area-inset-bottom) + 80px);">
 
         <!-- View: Tasks feed -->
         <div id="view-tasks" class="view">
-          <div class="px-4 md:px-6 pt-3 pb-1 flex items-center gap-2 flex-wrap">
-            <select id="tasks-filter-chat" class="input !w-auto !py-1.5 text-xs">
+          <div class="px-3 md:px-6 pt-3 pb-1 flex items-center gap-2 overflow-x-auto scrollbar-none md:flex-wrap">
+            <select id="tasks-filter-chat" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
               <option value="">All chats</option>
             </select>
-            <select id="tasks-filter-status" class="input !w-auto !py-1.5 text-xs">
+            <select id="tasks-filter-status" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
               <option value="">All statuses</option>
               <option value="pending">pending</option>
               <option value="running">running</option>
               <option value="completed">completed</option>
               <option value="failed">failed</option>
             </select>
-            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-2 text-xs ml-auto">Clear completed</button>
+            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-3 text-xs !rounded-full border border-border flex-shrink-0 md:ml-auto md:border-0">Clear completed</button>
           </div>
           <div id="tasks-empty" class="h-full flex flex-col items-center justify-center text-fg-dim text-sm text-center px-6 py-20 gap-2">
             <div class="text-4xl mb-2">✨</div>
@@ -126,21 +128,29 @@ import Layout from '../layouts/Layout.astro';
         </div>
 
         <!-- View: Chat (pure Q&A, no tools) -->
-        <div id="view-chat" class="view hidden flex flex-col h-full">
-          <div id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-3"></div>
-          <div class="border-t border-border p-3 bg-bg-raised sticky bottom-0">
-            <div class="flex gap-2 items-end max-w-3xl mx-auto">
-              <select id="chat-model" class="input !w-auto !py-2 flex-shrink-0">
-                <option value="haiku">haiku</option>
-                <option value="sonnet">sonnet</option>
-                <option value="opus">opus</option>
-              </select>
-              <textarea id="chat-input" class="input min-h-[44px] max-h-32 resize-none" rows="1" placeholder="Ask Claude…"></textarea>
-              <button id="chat-send" class="btn-primary !py-2 !px-4 flex-shrink-0" aria-label="Send">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </button>
+        <div id="view-chat" class="view hidden">
+          <div id="chat-messages" class="px-3 md:px-6 py-3 space-y-3"></div>
+          <!-- Chat input: fixed above tab bar on mobile, normal flow on desktop -->
+          <div id="chat-input-bar" class="fixed md:static left-0 right-0 z-20 border-t border-border bg-bg-raised/95 backdrop-blur-xl supports-[backdrop-filter]:bg-bg-raised/80 px-3 md:px-4 py-2 hidden" style="bottom: calc(env(safe-area-inset-bottom) + 56px);">
+            <div class="max-w-3xl mx-auto">
+              <div class="flex items-end gap-2">
+                <textarea id="chat-input" class="input !rounded-2xl min-h-[44px] max-h-40 resize-none !py-2.5" rows="1" placeholder="Ask Claude…"></textarea>
+                <button id="chat-send" class="btn-primary !rounded-full !w-11 !h-11 !min-h-[44px] !p-0 flex-shrink-0 justify-center" aria-label="Send">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              <div class="flex items-center justify-between mt-1.5 px-1">
+                <select id="chat-model" class="bg-transparent text-[11px] text-fg-muted border-none !p-0 !pr-4 focus:outline-none cursor-pointer">
+                  <option value="haiku">⚡ haiku</option>
+                  <option value="sonnet">✦ sonnet</option>
+                  <option value="opus">◆ opus</option>
+                </select>
+                <span class="text-[10px] text-fg-dim">No tools · pure chat</span>
+              </div>
             </div>
           </div>
+          <div class="hidden md:block" style="height: 140px;"></div>
+          <div class="md:hidden" style="height: 140px;"></div>
         </div>
 
         <!-- View: Usage -->
@@ -209,7 +219,8 @@ import Layout from '../layouts/Layout.astro';
 
         <!-- Modal: edit plan limits -->
         <div id="limits-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center">
-          <div class="card w-full md:max-w-md md:rounded-lg rounded-t-2xl rounded-b-none p-5 space-y-4 animate-slide-up md:animate-scale-in">
+          <div class="card w-full md:max-w-md md:rounded-lg rounded-t-3xl rounded-b-none p-5 pb-[max(env(safe-area-inset-bottom),1rem)] space-y-4 animate-slide-up md:animate-scale-in">
+            <div class="md:hidden sheet-handle -mt-3 mb-1"></div>
             <h2 class="text-base font-semibold">Plan limits</h2>
             <p class="text-xs text-fg-muted">Tokens cap per rolling window. Stored in your browser.</p>
             <div class="space-y-3">
@@ -235,9 +246,10 @@ import Layout from '../layouts/Layout.astro';
       <button
         id="fab-new-task"
         aria-label="New task"
-        class="md:hidden fixed bottom-24 right-5 z-30 w-16 h-16 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg hover:shadow-xl flex items-center justify-center active:scale-95 transition-all duration-200 animate-fade-in"
+        class="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg flex items-center justify-center active:scale-95 transition-all duration-200 animate-fade-in"
+        style="bottom: calc(env(safe-area-inset-bottom) + 72px);"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
 
       <!-- Desktop "+" button -->
@@ -246,35 +258,35 @@ import Layout from '../layouts/Layout.astro';
       <button id="logout-btn" class="hidden md:inline-flex btn-ghost fixed top-3 right-5 text-xs">Sign out</button>
 
       <!-- Bottom tab bar (mobile only) -->
-      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised/95 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)]">
-        <ul class="flex items-stretch">
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-bg-raised/75 border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
+        <ul class="flex items-stretch px-1">
           <li class="flex-1">
-            <button data-tab="tasks" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Tasks">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <button data-tab="tasks" class="tab-btn w-full py-2 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors duration-200 active:text-accent min-h-[56px]" aria-label="Tasks">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               <span>Tasks</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="projects" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Projects">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <button data-tab="projects" class="tab-btn w-full py-2 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors duration-200 active:text-accent min-h-[56px]" aria-label="Projects">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               <span>Projects</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="sessions" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Sessions">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <button data-tab="sessions" class="tab-btn w-full py-2 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors duration-200 active:text-accent min-h-[56px]" aria-label="Sessions">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               <span>Sessions</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="chat" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Chat">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+            <button data-tab="chat" class="tab-btn w-full py-2 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors duration-200 active:text-accent min-h-[56px]" aria-label="Chat">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
               <span>Chat</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="usage" class="tab-btn w-full py-3 flex flex-col items-center gap-1 text-[10px] transition-colors duration-200 hover:text-accent min-h-[60px]" aria-label="Usage">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            <button data-tab="usage" class="tab-btn w-full py-2 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors duration-200 active:text-accent min-h-[56px]" aria-label="Usage">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
               <span>Usage</span>
             </button>
           </li>
@@ -285,10 +297,11 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Modal: Quick Task (unified) -->
   <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center animate-fade-in">
-    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[90vh] md:max-h-[95dvh] flex flex-col animate-slide-up md:animate-scale-in">
-      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
+    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-3xl rounded-b-none p-0 max-h-[92dvh] md:max-h-[90dvh] flex flex-col animate-slide-up md:animate-scale-in">
+      <div class="md:hidden sheet-handle"></div>
+      <div class="px-4 md:px-5 py-2.5 md:py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-3xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">New Task</h2>
-        <button id="task-close" aria-label="Close" class="btn-ghost !p-3 !text-xl min-h-[44px] min-w-[44px]">×</button>
+        <button id="task-close" aria-label="Close" class="btn-ghost !p-2 !text-xl min-h-[40px] min-w-[40px] rounded-full">×</button>
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
@@ -335,10 +348,11 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Modal: Target picker (session / new project) -->
   <div id="target-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-end md:items-center justify-center animate-fade-in">
-    <div class="card w-full md:max-w-lg md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[85vh] md:max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
-      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
+    <div class="card w-full md:max-w-lg md:rounded-lg rounded-t-3xl rounded-b-none p-0 max-h-[88dvh] md:max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
+      <div class="md:hidden sheet-handle"></div>
+      <div class="px-4 md:px-5 py-2.5 md:py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-3xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">Send task to…</h2>
-        <button id="target-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
+        <button id="target-close" aria-label="Close" class="btn-ghost !p-2 !text-xl rounded-full">×</button>
       </div>
       <div class="px-4 md:px-5 pt-3 pb-2">
         <input id="target-search" class="input" placeholder="Search sessions, projects…" autocomplete="off" />
@@ -349,8 +363,9 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Modal: Task detail (bottom sheet) -->
   <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center animate-fade-in">
-    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-2xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
-      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
+    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-3xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
+      <div class="md:hidden sheet-handle"></div>
+      <div class="px-4 md:px-5 py-2.5 md:py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-3xl md:rounded-t-lg">
         <div class="min-w-0 flex-1">
           <h2 id="detail-title" class="text-sm font-semibold truncate"></h2>
           <div id="detail-meta" class="text-[11px] text-fg-muted mt-0.5 truncate"></div>
@@ -390,10 +405,11 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Modal: Theme selector -->
   <div id="theme-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center animate-fade-in">
-    <div class="card w-full md:max-w-sm md:rounded-lg rounded-t-2xl rounded-b-none p-0 flex flex-col animate-slide-up md:animate-scale-in">
-      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
+    <div class="card w-full md:max-w-sm md:rounded-lg rounded-t-3xl rounded-b-none p-0 flex flex-col animate-slide-up md:animate-scale-in pb-[env(safe-area-inset-bottom)]">
+      <div class="md:hidden sheet-handle"></div>
+      <div class="px-4 md:px-5 py-2.5 md:py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-3xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">Choose Theme</h2>
-        <button id="theme-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
+        <button id="theme-close" aria-label="Close" class="btn-ghost !p-2 !text-xl rounded-full">×</button>
       </div>
       <div class="p-3 space-y-2 overflow-y-auto">
         <button data-theme="dark" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all">
