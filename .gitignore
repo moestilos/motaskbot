@@ -8,3 +8,5 @@ dist
 .vercel
 .turbo
 .claude/worktrees
+
+.vercel
