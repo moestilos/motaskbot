@@ -15,8 +15,12 @@ if (!url || !anon) {
 <html lang="en" class="dark h-full">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MoTaskBot" />
     <title>{title}</title>
     <script is:inline define:vars={{ url, anon }}>
       window.__MOTASKBOT_ENV__ = { url, anon };

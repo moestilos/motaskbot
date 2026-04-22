@@ -1,23 +1,27 @@
 ---
 import Layout from '../layouts/Layout.astro';
 ---
-<Layout title="MoTaskBot — Dashboard">
-  <div class="flex h-screen overflow-hidden">
+<Layout title="MoTaskBot">
+  <div class="flex h-[100dvh] overflow-hidden relative">
     <!-- Sidebar -->
-    <aside class="w-72 border-r border-border bg-bg-raised flex flex-col">
+    <aside
+      id="sidebar"
+      class="fixed md:static inset-y-0 left-0 z-40 w-[85%] max-w-[320px] md:w-72 border-r border-border bg-bg-raised flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-out"
+    >
       <div class="px-4 py-3 border-b border-border flex items-center gap-2">
-        <div class="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
-        <div>
+        <div class="w-8 h-8 md:w-7 md:h-7 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">M</div>
+        <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold">MoTaskBot</div>
-          <div class="text-[11px] text-fg-dim" id="worker-status">worker: unknown</div>
+          <div class="text-[11px] text-fg-dim truncate" id="worker-status">worker: unknown</div>
         </div>
+        <button id="sidebar-close" aria-label="Close menu" class="md:hidden btn-ghost !p-2 !text-lg">×</button>
       </div>
 
       <div class="p-3 space-y-3 flex-1 overflow-y-auto">
         <section>
           <div class="flex items-center justify-between px-1 mb-1.5">
             <h3 class="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Projects</h3>
-            <button id="new-project-btn" class="btn-ghost !px-1.5 !py-0.5 text-xs">+ new</button>
+            <button id="new-project-btn" class="btn-ghost !px-2 !py-1 text-xs">+ new</button>
           </div>
           <ul id="project-list" class="space-y-0.5"></ul>
         </section>
@@ -25,65 +29,91 @@ import Layout from '../layouts/Layout.astro';
         <section id="chats-section" class="hidden">
           <div class="flex items-center justify-between px-1 mb-1.5">
             <h3 class="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Chats</h3>
-            <button id="new-chat-btn" class="btn-ghost !px-1.5 !py-0.5 text-xs">+ new</button>
+            <button id="new-chat-btn" class="btn-ghost !px-2 !py-1 text-xs">+ new</button>
           </div>
           <ul id="chat-list" class="space-y-0.5"></ul>
         </section>
       </div>
     </aside>
 
+    <!-- Sidebar overlay on mobile -->
+    <div id="sidebar-overlay" class="hidden md:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"></div>
+
     <!-- Main -->
     <main class="flex-1 flex flex-col overflow-hidden">
-      <header class="px-6 py-3 border-b border-border flex items-center justify-between">
-        <div>
-          <h1 id="main-title" class="text-sm font-semibold">Select a project</h1>
-          <p id="main-subtitle" class="text-xs text-fg-muted"></p>
+      <header class="px-4 md:px-6 py-3 border-b border-border flex items-center gap-3">
+        <button id="sidebar-open" aria-label="Open menu" class="md:hidden btn-ghost !p-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="flex-1 min-w-0">
+          <h1 id="main-title" class="text-sm font-semibold truncate">Select a project</h1>
+          <p id="main-subtitle" class="text-xs text-fg-muted truncate"></p>
         </div>
-        <button id="new-task-btn" class="btn-primary hidden">+ New Task</button>
+        <button id="new-task-btn" class="btn-primary hidden">
+          <span class="hidden sm:inline">+ New Task</span>
+          <span class="sm:hidden">+ Task</span>
+        </button>
       </header>
 
-      <section class="flex-1 overflow-y-auto px-6 py-4">
-        <div id="empty-state" class="h-full flex items-center justify-center text-fg-dim text-sm">
+      <section class="flex-1 overflow-y-auto px-4 md:px-6 py-4">
+        <div id="empty-state" class="h-full flex items-center justify-center text-fg-dim text-sm text-center px-6">
           Create a project to get started.
         </div>
         <ul id="task-list" class="space-y-2 hidden"></ul>
       </section>
+
+      <!-- Mobile FAB new task -->
+      <button
+        id="fab-new-task"
+        aria-label="New task"
+        class="hidden md:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white text-2xl shadow-lg flex items-center justify-center"
+      >+</button>
     </main>
   </div>
 
   <!-- Modal: new chat -->
-  <div id="chat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-    <div class="card w-full max-w-xl p-5 space-y-4">
-      <h2 class="text-base font-semibold">New Chat</h2>
+  <div id="chat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-xl rounded-b-none md:p-5 p-4 space-y-4 max-h-[92dvh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold">New Chat</h2>
+        <button id="chat-cancel-x" aria-label="Close" class="btn-ghost !p-2 md:hidden !text-xl">×</button>
+      </div>
       <div class="space-y-3">
         <div>
           <label class="text-xs text-fg-muted mb-1 block">Chat name</label>
-          <input id="chat-name" class="input" placeholder="e.g. refactor-auth" />
+          <input id="chat-name" class="input" placeholder="e.g. refactor-auth" autocomplete="off" />
         </div>
         <div>
           <label class="text-xs text-fg-muted mb-1 block">Claude Code session (optional)</label>
           <select id="chat-session" class="input">
             <option value="">— None (fresh session) —</option>
           </select>
-          <p class="text-[11px] text-fg-dim mt-1">Resume an existing Claude Code conversation. Preview shown for each.</p>
+          <p class="text-[11px] text-fg-dim mt-1">Resume an existing Claude Code conversation.</p>
         </div>
         <div>
-          <label class="text-xs text-fg-muted mb-1 block">Working directory (optional)</label>
-          <input id="chat-working-dir" class="input font-mono" placeholder="C:\\path\\to\\project" />
-          <p class="text-[11px] text-fg-dim mt-1">Auto-filled when you pick a session. Claude runs in this directory (reads CLAUDE.md, repo files).</p>
+          <label class="text-xs text-fg-muted mb-1 block">Folder</label>
+          <select id="chat-dir-select" class="input">
+            <option value="">— None —</option>
+            <option value="__custom__">Custom path…</option>
+          </select>
+          <input id="chat-working-dir" class="input font-mono mt-2 hidden" placeholder="C:\\path\\to\\project" autocomplete="off" />
+          <p class="text-[11px] text-fg-dim mt-1">Claude runs here (reads CLAUDE.md, repo files).</p>
         </div>
       </div>
-      <div class="flex justify-end gap-2">
-        <button id="chat-cancel" class="btn-ghost">Cancel</button>
-        <button id="chat-create" class="btn-primary">Create</button>
+      <div class="flex justify-end gap-2 pt-1">
+        <button id="chat-cancel" class="btn-ghost hidden md:inline-flex">Cancel</button>
+        <button id="chat-create" class="btn-primary flex-1 md:flex-none justify-center">Create</button>
       </div>
     </div>
   </div>
 
   <!-- Modal: new task -->
-  <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-    <div class="card w-full max-w-xl p-5 space-y-4">
-      <h2 class="text-base font-semibold">New Task</h2>
+  <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-xl rounded-b-none md:p-5 p-4 space-y-4 max-h-[92dvh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold">New Task</h2>
+        <button id="task-cancel-x" aria-label="Close" class="btn-ghost !p-2 md:hidden !text-xl">×</button>
+      </div>
       <div class="space-y-3">
         <div>
           <label class="text-xs text-fg-muted mb-1 block">Chat</label>
@@ -91,31 +121,31 @@ import Layout from '../layouts/Layout.astro';
         </div>
         <div>
           <label class="text-xs text-fg-muted mb-1 block">Title</label>
-          <input id="task-title" class="input" placeholder="Short summary" />
+          <input id="task-title" class="input" placeholder="Short summary" autocomplete="off" />
         </div>
         <div>
           <label class="text-xs text-fg-muted mb-1 block">Instructions</label>
           <textarea id="task-instructions" class="textarea" placeholder="What should Claude do?"></textarea>
         </div>
       </div>
-      <div class="flex justify-end gap-2">
-        <button id="task-cancel" class="btn-ghost">Cancel</button>
-        <button id="task-create" class="btn-primary">Create</button>
+      <div class="flex justify-end gap-2 pt-1">
+        <button id="task-cancel" class="btn-ghost hidden md:inline-flex">Cancel</button>
+        <button id="task-create" class="btn-primary flex-1 md:flex-none justify-center">Create</button>
       </div>
     </div>
   </div>
 
   <!-- Modal: task detail -->
-  <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-    <div class="card w-full max-w-3xl max-h-[85vh] flex flex-col">
-      <div class="px-5 py-3 border-b border-border flex items-center justify-between">
-        <div>
-          <h2 id="detail-title" class="text-sm font-semibold"></h2>
-          <div id="detail-meta" class="text-xs text-fg-muted mt-0.5"></div>
+  <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col">
+      <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h2 id="detail-title" class="text-sm font-semibold truncate"></h2>
+          <div id="detail-meta" class="text-xs text-fg-muted mt-0.5 truncate"></div>
         </div>
-        <button id="detail-close" class="btn-ghost">Close</button>
+        <button id="detail-close" class="btn-ghost !p-2 !text-lg md:!p-2 md:!text-sm">×</button>
       </div>
-      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+      <div class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
         <div>
           <h3 class="text-xs uppercase tracking-wider text-fg-muted mb-1">Instructions</h3>
           <pre id="detail-instructions" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded p-3 border border-border"></pre>

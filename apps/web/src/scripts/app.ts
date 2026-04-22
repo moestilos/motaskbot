@@ -160,12 +160,16 @@ function selectProject(id: string) {
   renderProjects();
   renderChats();
   renderTasks();
+  syncFab();
+  if (window.matchMedia('(max-width: 767px)').matches) closeSidebar();
 }
 
 function selectChat(id: string) {
   state.currentChatId = state.currentChatId === id ? null : id;
   renderChats();
   renderTasks();
+  syncFab();
+  if (window.matchMedia('(max-width: 767px)').matches) closeSidebar();
 }
 
 // ---------- CRUD ----------
@@ -194,17 +198,64 @@ function openChatModal() {
         return `<option value="${s.session_id}" data-dir="${escapeAttr(s.project_dir)}" data-label="${escapeAttr(s.project_label)}">${escapeHtml(s.project_label)}  —  ${escapeHtml(title)}${preview.length >= 70 ? '…' : ''}  ·  ${when}</option>`;
       })
       .join('');
+
+  // Folder dropdown: unique dirs from sessions + current project's dir
+  const dirSelect = $<HTMLSelectElement>('chat-dir-select');
+  const dirs = new Map<string, string>();
+  const currentProject = state.projects.find((p) => p.id === state.currentProjectId);
+  if (currentProject?.working_dir) dirs.set(currentProject.working_dir, currentProject.name);
+  for (const s of sessions) if (!dirs.has(s.project_dir)) dirs.set(s.project_dir, s.project_label);
+
+  dirSelect.innerHTML =
+    `<option value="">— None —</option>` +
+    Array.from(dirs.entries())
+      .map(
+        ([dir, label]) =>
+          `<option value="${escapeAttr(dir)}">${escapeHtml(label)} — ${escapeHtml(dir)}</option>`,
+      )
+      .join('') +
+    `<option value="__custom__">Custom path…</option>`;
+  if (currentProject?.working_dir) dirSelect.value = currentProject.working_dir;
+
   ($('chat-name') as HTMLInputElement).value = '';
-  ($('chat-working-dir') as HTMLInputElement).value = '';
-  sel.addEventListener('change', onSessionPick);
+  ($('chat-working-dir') as HTMLInputElement).value = currentProject?.working_dir ?? '';
+  $('chat-working-dir').classList.add('hidden');
+  sel.onchange = onSessionPick;
+  dirSelect.onchange = onDirPick;
   $('chat-modal').classList.remove('hidden');
+}
+
+function onDirPick(e: Event) {
+  const sel = e.target as HTMLSelectElement;
+  const custom = $<HTMLInputElement>('chat-working-dir');
+  if (sel.value === '__custom__') {
+    custom.classList.remove('hidden');
+    custom.value = '';
+    custom.focus();
+  } else {
+    custom.classList.add('hidden');
+    custom.value = sel.value;
+  }
 }
 
 function onSessionPick(e: Event) {
   const opt = (e.target as HTMLSelectElement).selectedOptions[0];
   const dir = opt?.dataset.dir ?? '';
   const label = opt?.dataset.label ?? '';
-  ($('chat-working-dir') as HTMLInputElement).value = dir;
+  if (dir) {
+    const dirSelect = $<HTMLSelectElement>('chat-dir-select');
+    // Ensure option exists, then select
+    let exists = Array.from(dirSelect.options).some((o) => o.value === dir);
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = dir;
+      opt.textContent = `${label} — ${dir}`;
+      dirSelect.insertBefore(opt, dirSelect.lastElementChild!);
+    }
+    dirSelect.value = dir;
+    ($('chat-working-dir') as HTMLInputElement).value = dir;
+    ($('chat-working-dir') as HTMLInputElement).classList.add('hidden');
+  }
   if (!($('chat-name') as HTMLInputElement).value && label) {
     ($('chat-name') as HTMLInputElement).value = label;
   }
@@ -360,15 +411,43 @@ function setWorkerStatus(s: 'active' | 'idle' | 'unknown') {
 }
 
 // ---------- Wire up ----------
+// Sidebar drawer (mobile)
+function openSidebar() {
+  $('sidebar').classList.remove('-translate-x-full');
+  const ov = $('sidebar-overlay');
+  ov.classList.remove('hidden');
+  ov.classList.add('flex');
+}
+function closeSidebar() {
+  $('sidebar').classList.add('-translate-x-full');
+  const ov = $('sidebar-overlay');
+  ov.classList.add('hidden');
+  ov.classList.remove('flex');
+}
+$('sidebar-open')?.addEventListener('click', openSidebar);
+$('sidebar-close')?.addEventListener('click', closeSidebar);
+$('sidebar-overlay')?.addEventListener('click', closeSidebar);
+
+// Show FAB on mobile when project selected
+function syncFab() {
+  const fab = $('fab-new-task');
+  const visible = !!state.currentProjectId && state.chats.some((c) => c.project_id === state.currentProjectId);
+  fab.classList.toggle('hidden', !visible);
+  fab.classList.toggle('md:hidden', true);
+}
+$('fab-new-task')?.addEventListener('click', openTaskModal);
+
 $('new-project-btn').addEventListener('click', createProject);
 $('new-chat-btn').addEventListener('click', openChatModal);
 $('chat-cancel').addEventListener('click', () => $('chat-modal').classList.add('hidden'));
+$('chat-cancel-x')?.addEventListener('click', () => $('chat-modal').classList.add('hidden'));
 $('chat-create').addEventListener('click', createChat);
 $('chat-modal').addEventListener('click', (e) => {
   if (e.target === $('chat-modal')) $('chat-modal').classList.add('hidden');
 });
 $('new-task-btn').addEventListener('click', openTaskModal);
 $('task-cancel').addEventListener('click', () => $('task-modal').classList.add('hidden'));
+$('task-cancel-x')?.addEventListener('click', () => $('task-modal').classList.add('hidden'));
 $('task-create').addEventListener('click', createTask);
 $('detail-close').addEventListener('click', () => $('detail-modal').classList.add('hidden'));
 [$('task-modal'), $('detail-modal')].forEach((m) => {
@@ -377,4 +456,4 @@ $('detail-close').addEventListener('click', () => $('detail-modal').classList.ad
   });
 });
 
-load().then(subscribeRealtime);
+load().then(() => { subscribeRealtime(); syncFab(); });
