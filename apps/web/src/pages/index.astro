@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="MoTaskBot">
   <!-- Login screen -->
-  <div id="login-screen" class="hidden fixed inset-0 z-[100] bg-bg flex items-center justify-center p-6">
-    <form id="login-form" class="card w-full max-w-sm p-6 space-y-4">
+  <div id="login-screen" class="hidden fixed inset-0 z-[100] bg-bg flex items-center justify-center p-6 animate-fade-in">
+    <form id="login-form" class="card w-full max-w-sm p-6 space-y-4 animate-scale-in shadow-2xl">
       <div class="flex items-center gap-3 mb-2">
         <div class="w-10 h-10 rounded-md bg-accent flex items-center justify-center text-white font-bold">M</div>
         <div>
@@ -27,7 +27,11 @@ import Layout from '../layouts/Layout.astro';
     </form>
   </div>
 
-  <div id="app-root" class="flex flex-col md:flex-row h-[100dvh] overflow-hidden relative hidden">
+  <!-- Floating background orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div id="app-root" class="flex flex-col md:flex-row h-[100dvh] overflow-hidden relative hidden animate-fade-in" style="z-index: 10;">
 
     <!-- Desktop sidebar (hidden on mobile) -->
     <aside class="hidden md:flex w-72 border-r border-border bg-bg-raised flex-col">
@@ -98,7 +102,8 @@ import Layout from '../layouts/Layout.astro';
       <button
         id="fab-new-task"
         aria-label="New task"
-        class="md:hidden fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        class="md:hidden fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white shadow-lg hover:shadow-xl flex items-center justify-center active:scale-95 transition-all duration-200 animate-fade-in"
+        style="box-shadow: 0 4px 20px rgba(124, 92, 255, 0.4);"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
@@ -109,22 +114,22 @@ import Layout from '../layouts/Layout.astro';
       <button id="logout-btn" class="hidden md:inline-flex btn-ghost fixed top-3 right-5 text-xs">Sign out</button>
 
       <!-- Bottom tab bar (mobile only) -->
-      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised border-t border-border pb-[env(safe-area-inset-bottom)]">
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-bg-raised/95 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)]">
         <ul class="flex items-stretch">
           <li class="flex-1">
-            <button data-tab="tasks" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Tasks">
+            <button data-tab="tasks" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px] transition-colors duration-200 hover:text-accent" aria-label="Tasks">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               <span>Tasks</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="projects" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Projects">
+            <button data-tab="projects" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px] transition-colors duration-200 hover:text-accent" aria-label="Projects">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               <span>Projects</span>
             </button>
           </li>
           <li class="flex-1">
-            <button data-tab="sessions" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px]" aria-label="Sessions">
+            <button data-tab="sessions" class="tab-btn w-full py-2.5 flex flex-col items-center gap-0.5 text-[10px] transition-colors duration-200 hover:text-accent" aria-label="Sessions">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
               <span>Sessions</span>
             </button>
@@ -135,8 +140,8 @@ import Layout from '../layouts/Layout.astro';
   </div>
 
   <!-- Modal: Quick Task (unified) -->
-  <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[95dvh] flex flex-col">
+  <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center animate-fade-in">
+    <div class="card w-full md:max-w-xl md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[95dvh] flex flex-col animate-slide-up md:animate-scale-in">
       <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">New Task</h2>
         <button id="task-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
@@ -176,8 +181,8 @@ import Layout from '../layouts/Layout.astro';
   </div>
 
   <!-- Modal: Target picker (session / new project) -->
-  <div id="target-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-lg md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[92dvh] flex flex-col">
+  <div id="target-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-end md:items-center justify-center animate-fade-in">
+    <div class="card w-full md:max-w-lg md:rounded-lg rounded-t-2xl rounded-b-none p-0 max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
       <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
         <h2 class="text-base font-semibold">Send task to…</h2>
         <button id="target-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
@@ -190,8 +195,8 @@ import Layout from '../layouts/Layout.astro';
   </div>
 
   <!-- Modal: Task detail (bottom sheet) -->
-  <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-2xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col">
+  <div id="detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-end md:items-center justify-center animate-fade-in">
+    <div class="card w-full md:max-w-3xl md:rounded-lg rounded-t-2xl rounded-b-none md:max-h-[85vh] max-h-[92dvh] flex flex-col animate-slide-up md:animate-scale-in">
       <div class="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3 sticky top-0 bg-bg-raised z-10 rounded-t-2xl md:rounded-t-lg">
         <div class="min-w-0 flex-1">
           <h2 id="detail-title" class="text-sm font-semibold truncate"></h2>
