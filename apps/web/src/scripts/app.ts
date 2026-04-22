@@ -939,6 +939,28 @@ $('theme-modal').addEventListener('click', (e) => {
 
 // Run auth gate FIRST so login screen shows even if later wire-up breaks.
 try { loadTheme(); } catch (e) { console.error('loadTheme failed', e); }
+// iOS install hint: show banner for Safari on iOS when not yet in standalone mode.
+function maybeShowIosInstallBanner() {
+  try {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+    const isStandalone =
+      (window.navigator as any).standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    const dismissed = localStorage.getItem('motaskbot-ios-banner-dismissed') === '1';
+    if (isIOS && isSafari && !isStandalone && !dismissed) {
+      const banner = document.getElementById('ios-install-banner');
+      if (banner) banner.classList.remove('hidden');
+    }
+  } catch {}
+}
+document.getElementById('ios-banner-close')?.addEventListener('click', () => {
+  document.getElementById('ios-install-banner')?.classList.add('hidden');
+  localStorage.setItem('motaskbot-ios-banner-dismissed', '1');
+});
+maybeShowIosInstallBanner();
+
 initAuth().catch((e) => {
   console.error('initAuth failed, forcing login screen', e);
   showLogin();

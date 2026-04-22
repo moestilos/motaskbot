@@ -21,6 +21,11 @@ if (!url || !anon) {
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MoTaskBot" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="apple-touch-icon-precomposed" href="/icon.svg" />
     <title>{title}</title>
     <script is:inline define:vars={{ url, anon }}>
       window.__MOTASKBOT_ENV__ = { url, anon };

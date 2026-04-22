@@ -92,8 +92,14 @@ html[data-theme="dracula"] {
   html, body {
     @apply bg-bg text-fg font-sans antialiased h-full;
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: none;
     overflow: hidden;
+    touch-action: manipulation;
   }
+  input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
+  .overflow-y-auto, .overflow-auto { -webkit-overflow-scrolling: touch; }
+  input, textarea, select { -webkit-appearance: none; appearance: none; }
   body {
     @apply min-h-screen relative;
     padding-left: env(safe-area-inset-left);

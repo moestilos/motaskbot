@@ -2,6 +2,17 @@
 import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="MoTaskBot">
+  <!-- iOS install banner -->
+  <div id="ios-install-banner" class="hidden fixed bottom-4 left-4 right-4 z-[90] card p-4 flex items-start gap-3 shadow-2xl md:hidden animate-slide-up">
+    <div class="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold flex-shrink-0">M</div>
+    <div class="flex-1 text-xs text-fg">
+      Add to Home Screen: tap
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-text-bottom"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      Share, then <span class="text-accent font-medium">Add to Home Screen</span>.
+    </div>
+    <button id="ios-banner-close" aria-label="Dismiss" class="btn-ghost !p-1 text-fg-muted">×</button>
+  </div>
+
   <!-- Login screen -->
   <div id="login-screen" class="hidden fixed inset-0 z-[100] bg-bg flex items-center justify-center p-6 animate-fade-in">
     <form id="login-form" class="card w-full max-w-sm p-6 md:p-8 space-y-5 animate-scale-in shadow-2xl mx-4">
