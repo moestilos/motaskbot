@@ -83,6 +83,19 @@ import Layout from '../layouts/Layout.astro';
 
         <!-- View: Tasks feed -->
         <div id="view-tasks" class="view">
+          <div class="px-4 md:px-6 pt-3 pb-1 flex items-center gap-2 flex-wrap">
+            <select id="tasks-filter-chat" class="input !w-auto !py-1.5 text-xs">
+              <option value="">All chats</option>
+            </select>
+            <select id="tasks-filter-status" class="input !w-auto !py-1.5 text-xs">
+              <option value="">All statuses</option>
+              <option value="pending">pending</option>
+              <option value="running">running</option>
+              <option value="completed">completed</option>
+              <option value="failed">failed</option>
+            </select>
+            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-2 text-xs ml-auto">Clear completed</button>
+          </div>
           <div id="tasks-empty" class="h-full flex flex-col items-center justify-center text-fg-dim text-sm text-center px-6 py-20 gap-2">
             <div class="text-4xl mb-2">✨</div>
             <div>No tasks yet.</div>
@@ -271,7 +284,12 @@ import Layout from '../layouts/Layout.astro';
           <h2 id="detail-title" class="text-sm font-semibold truncate"></h2>
           <div id="detail-meta" class="text-[11px] text-fg-muted mt-0.5 truncate"></div>
         </div>
-        <button id="detail-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
+        <div class="flex items-center gap-1">
+          <button id="detail-delete" aria-label="Delete task" class="btn-ghost !p-2 text-fg-dim hover:text-status-failed">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+          <button id="detail-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
+        </div>
       </div>
       <div class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4 pb-[env(safe-area-inset-bottom)]">
         <div>

@@ -25,6 +25,8 @@ const state = {
   searchQuery: '',
   target: null as Target | null,
   theme: 'dark' as string,
+  filterChat: '' as string,
+  filterStatus: '' as string,
 };
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -45,12 +47,37 @@ function relDate(iso: string) {
 }
 
 // ---------- Rendering: Tasks feed ----------
+function renderTasksFilterOptions() {
+  const sel = $('tasks-filter-chat') as HTMLSelectElement | null;
+  if (!sel) return;
+  const prev = sel.value;
+  const chats = state.chats
+    .filter((c) => {
+      const p = state.projects.find((x) => x.id === c.project_id);
+      return p && p.name !== CHAT_PROJECT_NAME;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML =
+    '<option value="">All chats</option>' +
+    chats
+      .map((c) => {
+        const p = state.projects.find((x) => x.id === c.project_id);
+        const label = p ? `${p.name} · ${c.name}` : c.name;
+        return `<option value="${c.id}">${escapeHtml(label)}</option>`;
+      })
+      .join('');
+  if (prev && chats.some((c) => c.id === prev)) sel.value = prev;
+}
+
 function renderTasks() {
+  renderTasksFilterOptions();
   const ul = $('tasks-feed');
   const empty = $('tasks-empty');
   const q = state.searchQuery.toLowerCase();
   const tasks = state.tasks
     .filter((t) => (t as any).kind !== 'chat')
+    .filter((t) => !state.filterChat || t.chat_id === state.filterChat)
+    .filter((t) => !state.filterStatus || t.status === state.filterStatus)
     .filter((t) => {
       if (!q) return true;
       return (t.title + ' ' + t.instructions + ' ' + (t.result ?? '')).toLowerCase().includes(q);
@@ -76,12 +103,13 @@ function renderTasks() {
       const chatBit = chat?.claude_session_id
         ? `<span class="text-accent">⎋</span>`
         : '';
+      const deletable = t.status === 'completed' || t.status === 'failed';
       return `
-      <li>
+      <li class="relative">
         <button data-id="${t.id}" class="task-item w-full text-left card px-4 py-3 active:bg-bg-elevated transition-colors">
           <div class="flex items-start gap-3">
             <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 pr-8">
               <div class="flex items-baseline justify-between gap-2">
                 <div class="text-sm font-medium truncate">${escapeHtml(t.title)}</div>
                 <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(t.updated_at)}</div>
@@ -97,12 +125,24 @@ function renderTasks() {
             </div>
           </div>
         </button>
+        ${deletable ? `<button data-del-id="${t.id}" aria-label="Delete task" class="task-del absolute top-2 right-2 btn-ghost !p-2 text-fg-dim hover:text-status-failed">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+        </button>` : ''}
       </li>`;
     })
     .join('');
 
   ul.querySelectorAll<HTMLButtonElement>('.task-item').forEach((btn) => {
     btn.addEventListener('click', () => openDetail(btn.dataset.id!));
+  });
+  ul.querySelectorAll<HTMLButtonElement>('.task-del').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.delId!;
+      if (!confirm('Delete this task?')) return;
+      const { error } = await sb.from('tasks').delete().eq('id', id);
+      if (error) alert(error.message);
+    });
   });
 }
 
@@ -779,6 +819,34 @@ $('detail-reply-yes')?.addEventListener('click', () => {
 });
 
 $('detail-close').addEventListener('click', () => $('detail-modal').classList.add('hidden'));
+$('detail-delete')?.addEventListener('click', async () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  if (!confirm('Delete this task?')) return;
+  const { error } = await sb.from('tasks').delete().eq('id', id);
+  if (error) return alert(error.message);
+  $('detail-modal').classList.add('hidden');
+});
+
+$('tasks-filter-chat')?.addEventListener('change', (e) => {
+  state.filterChat = (e.target as HTMLSelectElement).value;
+  renderTasks();
+});
+$('tasks-filter-status')?.addEventListener('change', (e) => {
+  state.filterStatus = (e.target as HTMLSelectElement).value;
+  renderTasks();
+});
+$('tasks-clear-completed')?.addEventListener('click', async () => {
+  const visible = state.tasks
+    .filter((t) => (t as any).kind !== 'chat')
+    .filter((t) => !state.filterChat || t.chat_id === state.filterChat)
+    .filter((t) => t.status === 'completed' || t.status === 'failed');
+  if (visible.length === 0) return alert('Nothing to clear.');
+  if (!confirm(`Delete ${visible.length} completed/failed task(s)?`)) return;
+  const ids = visible.map((t) => t.id);
+  const { error } = await sb.from('tasks').delete().in('id', ids);
+  if (error) alert(error.message);
+});
 $('detail-modal').addEventListener('click', (e) => {
   if (e.target === $('detail-modal')) $('detail-modal').classList.add('hidden');
 });
