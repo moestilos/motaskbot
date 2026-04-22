@@ -577,7 +577,13 @@ function closeThemeModal() {
   $('theme-modal').classList.add('hidden');
 }
 
-// ---------- Wire up ----------
+// ---------- Wire up (safe: null elements are skipped) ----------
+function on(id: string, ev: string, fn: (e: Event) => void) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(ev, fn);
+  else console.warn(`[motaskbot] element '${id}' not found — listener skipped`);
+}
+
 document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTab(btn.dataset.tab as Tab));
 });
@@ -688,5 +694,19 @@ $('theme-modal').addEventListener('click', (e) => {
   if (e.target === $('theme-modal')) closeThemeModal();
 });
 
-loadTheme();
-initAuth();
+// Run auth gate FIRST so login screen shows even if later wire-up breaks.
+try { loadTheme(); } catch (e) { console.error('loadTheme failed', e); }
+initAuth().catch((e) => {
+  console.error('initAuth failed, forcing login screen', e);
+  showLogin();
+});
+
+// Final fallback: if neither screen is visible after 3s, force login.
+setTimeout(() => {
+  const loginHidden = $('login-screen').classList.contains('hidden');
+  const appHidden = $('app-root').classList.contains('hidden');
+  if (loginHidden && appHidden) {
+    console.warn('[motaskbot] both screens hidden after 3s — forcing login');
+    showLogin();
+  }
+}, 3000);

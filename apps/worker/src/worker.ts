@@ -8,6 +8,7 @@ import { createServerClient, type MoTaskBotClient } from '@motaskbot/shared/supa
 import type { Task, Chat, ChatContextMessage } from '@motaskbot/shared/types';
 import { executeTaskWithClaude } from './claude.js';
 import { startSessionScanner } from './sessionScanner.js';
+import { pickVerifyCommand, runVerify } from './verify.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('worker');
@@ -102,18 +103,51 @@ async function processTask(taskId: string) {
     const chat = await getChat(task.chat_id);
     if (!chat) throw new Error('Chat not found');
 
-    const { output, sessionId } = await executeTaskWithClaude(task, chat.context ?? [], claudeConfig, {
+    let { output, sessionId } = await executeTaskWithClaude(task, chat.context ?? [], claudeConfig, {
       workingDir: chat.working_dir,
       sessionId: chat.claude_session_id,
     });
+
+    // ---- Autoheal: verify build + ask Claude to fix on failure ----
+    const AUTOHEAL_ENABLED = process.env.AUTOHEAL !== '0';
+    const MAX_HEAL_ATTEMPTS = Number(process.env.AUTOHEAL_MAX_ATTEMPTS ?? 2);
+    let healLog = '';
+    if (AUTOHEAL_ENABLED && chat.working_dir) {
+      const verifyCmd = await pickVerifyCommand(chat.working_dir);
+      if (verifyCmd) {
+        for (let attempt = 1; attempt <= MAX_HEAL_ATTEMPTS; attempt++) {
+          const v = await runVerify(verifyCmd, chat.working_dir);
+          if (v.ok) {
+            healLog += `\n\n[autoheal] ✓ ${v.command} passed (attempt ${attempt}/${MAX_HEAL_ATTEMPTS})`;
+            log.info(`autoheal ok after ${attempt} attempt(s)`);
+            break;
+          }
+          healLog += `\n\n[autoheal] ✗ ${v.command} failed (attempt ${attempt}/${MAX_HEAL_ATTEMPTS}, exit ${v.exitCode})`;
+          log.warn(`autoheal attempt ${attempt} failed — asking Claude to fix`);
+          if (attempt === MAX_HEAL_ATTEMPTS) {
+            healLog += `\nGave up after ${MAX_HEAL_ATTEMPTS} attempts. Output:\n${v.output.slice(-2000)}`;
+            break;
+          }
+          const fixPrompt = `Previous change broke the build.\n\nCommand: ${v.command}\nExit code: ${v.exitCode}\nOutput (last 2000 chars):\n\n${v.output.slice(-2000)}\n\nFix this. Do not explain — just edit the files.`;
+          const fixRes = await executeTaskWithClaude(
+            { ...task, instructions: fixPrompt, title: `autoheal: ${task.title}` },
+            [],
+            claudeConfig,
+            { workingDir: chat.working_dir, sessionId: sessionId ?? chat.claude_session_id },
+          );
+          output += `\n\n--- Autoheal attempt ${attempt} ---\n${fixRes.output}`;
+          if (fixRes.sessionId) sessionId = fixRes.sessionId;
+        }
+      }
+    }
 
     const now = new Date().toISOString();
     const newContext: ChatContextMessage[] = [
       ...(chat.context ?? []),
       { role: 'user', content: `[Task: ${task.title}]\n${task.instructions}`, task_id: task.id, at: now },
-      { role: 'assistant', content: output, task_id: task.id, at: now },
+      { role: 'assistant', content: output + healLog, task_id: task.id, at: now },
     ];
-    await completeTask(task, output, newContext, sessionId, chat.claude_session_id);
+    await completeTask(task, output + healLog, newContext, sessionId, chat.claude_session_id);
     log.info(`✓ completed task ${task.id}${sessionId ? ` (session ${sessionId.slice(0, 8)})` : ''}`);
   } catch (err) {
     log.error(`✗ task ${taskId} failed`, (err as Error).message);
