@@ -130,8 +130,71 @@ export async function scanSessions(sb: MoTaskBotClient): Promise<number> {
     log.error('upsert sessions failed', error.message);
     return 0;
   }
+
+  await syncProjectsAndChats(sb, sessions);
+
   log.info(`synced ${sessions.length} claude sessions`);
   return sessions.length;
+}
+
+async function syncProjectsAndChats(sb: MoTaskBotClient, sessions: SessionInfo[]) {
+  // 1. Unique project_dirs → upsert project rows (source='claude_code')
+  const uniqueDirs = new Map<string, string>(); // dir → label
+  for (const s of sessions) uniqueDirs.set(s.project_dir, s.project_label);
+
+  const projectRows = Array.from(uniqueDirs.entries()).map(([dir, label]) => ({
+    name: label,
+    working_dir: dir,
+    source: 'claude_code' as const,
+  }));
+
+  if (projectRows.length > 0) {
+    const { error } = await sb
+      .from('projects')
+      .upsert(projectRows, { onConflict: 'working_dir', ignoreDuplicates: false });
+    if (error) {
+      log.warn(`project upsert failed: ${error.message}`);
+      return;
+    }
+  }
+
+  // 2. Load back project ids by working_dir
+  const dirs = Array.from(uniqueDirs.keys());
+  const { data: projects, error: pErr } = await sb
+    .from('projects')
+    .select('id, working_dir')
+    .in('working_dir', dirs);
+  if (pErr || !projects) {
+    log.warn(`project reload failed: ${pErr?.message}`);
+    return;
+  }
+  const dirToProjectId = new Map(projects.map((p) => [p.working_dir!, p.id]));
+
+  // 3. Upsert one chat per session (keyed on claude_session_id)
+  const chatRows = sessions
+    .map((s) => {
+      const project_id = dirToProjectId.get(s.project_dir);
+      if (!project_id) return null;
+      const name =
+        s.preview && s.preview.length > 0
+          ? s.preview.split(/\s+/).slice(0, 6).join(' ').slice(0, 50)
+          : `session ${s.session_id.slice(0, 6)}`;
+      return {
+        project_id,
+        name,
+        working_dir: s.project_dir,
+        claude_session_id: s.session_id,
+        context: [] as unknown[],
+      };
+    })
+    .filter(Boolean) as any[];
+
+  if (chatRows.length > 0) {
+    const { error } = await sb
+      .from('chats')
+      .upsert(chatRows, { onConflict: 'claude_session_id', ignoreDuplicates: true });
+    if (error) log.warn(`chat upsert failed: ${error.message}`);
+  }
 }
 
 export function startSessionScanner(sb: MoTaskBotClient, intervalMs = 30_000) {

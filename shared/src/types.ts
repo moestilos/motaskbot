@@ -3,6 +3,8 @@ export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 export interface Project {
   id: string;
   name: string;
+  working_dir: string | null;
+  source: 'manual' | 'claude_code';
   created_at: string;
 }
 
