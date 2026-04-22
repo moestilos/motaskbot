@@ -51,6 +51,35 @@ import Layout from '../layouts/Layout.astro';
     </main>
   </div>
 
+  <!-- Modal: new chat -->
+  <div id="chat-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="card w-full max-w-xl p-5 space-y-4">
+      <h2 class="text-base font-semibold">New Chat</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-fg-muted mb-1 block">Chat name</label>
+          <input id="chat-name" class="input" placeholder="e.g. refactor-auth" />
+        </div>
+        <div>
+          <label class="text-xs text-fg-muted mb-1 block">Claude Code session (optional)</label>
+          <select id="chat-session" class="input">
+            <option value="">— None (fresh session) —</option>
+          </select>
+          <p class="text-[11px] text-fg-dim mt-1">Resume an existing Claude Code conversation. Preview shown for each.</p>
+        </div>
+        <div>
+          <label class="text-xs text-fg-muted mb-1 block">Working directory (optional)</label>
+          <input id="chat-working-dir" class="input font-mono" placeholder="C:\\path\\to\\project" />
+          <p class="text-[11px] text-fg-dim mt-1">Auto-filled when you pick a session. Claude runs in this directory (reads CLAUDE.md, repo files).</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="chat-cancel" class="btn-ghost">Cancel</button>
+        <button id="chat-create" class="btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: new task -->
   <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
     <div class="card w-full max-w-xl p-5 space-y-4">

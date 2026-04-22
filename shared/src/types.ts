@@ -18,7 +18,19 @@ export interface Chat {
   project_id: string;
   name: string;
   context: ChatContextMessage[];
+  working_dir: string | null;
+  claude_session_id: string | null;
   created_at: string;
+}
+
+export interface ClaudeSession {
+  session_id: string;
+  project_dir: string;
+  project_label: string;
+  preview: string | null;
+  message_count: number;
+  last_activity_at: string;
+  discovered_at: string;
 }
 
 export interface Task {
@@ -40,6 +52,7 @@ export interface Database {
       projects: { Row: Project; Insert: Omit<Project, 'id' | 'created_at'> & { id?: string; created_at?: string }; Update: Partial<Project> };
       chats: { Row: Chat; Insert: Omit<Chat, 'id' | 'created_at' | 'context'> & { id?: string; created_at?: string; context?: ChatContextMessage[] }; Update: Partial<Chat> };
       tasks: { Row: Task; Insert: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status' | 'result' | 'error'> & { id?: string; status?: TaskStatus; result?: string | null; error?: string | null; created_at?: string; updated_at?: string }; Update: Partial<Task> };
+      claude_sessions: { Row: ClaudeSession; Insert: ClaudeSession; Update: Partial<ClaudeSession> };
     };
   };
 }

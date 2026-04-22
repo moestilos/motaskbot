@@ -10,13 +10,26 @@ export interface ClaudeConfig {
   cliPath?: string;
 }
 
+export interface ExecuteOptions {
+  workingDir?: string | null;
+  sessionId?: string | null;
+}
+
+export interface ExecuteResult {
+  output: string;
+  sessionId: string | null;
+}
+
 export async function executeTaskWithClaude(
   task: Task,
   context: ChatContextMessage[],
   config: ClaudeConfig,
-): Promise<string> {
-  if (config.apiKey) return executeViaApi(task, context, config.apiKey);
-  return executeViaCli(task, context, config.cliPath ?? 'claude');
+  opts: ExecuteOptions = {},
+): Promise<ExecuteResult> {
+  if (config.apiKey && !opts.sessionId && !opts.workingDir) {
+    return executeViaApi(task, context, config.apiKey);
+  }
+  return executeViaCli(task, context, config.cliPath ?? 'claude', opts);
 }
 
 function buildContextBlock(context: ChatContextMessage[]): string {
@@ -28,8 +41,7 @@ function buildContextBlock(context: ChatContextMessage[]): string {
   return `Previous conversation in this chat:\n\n${lines.join('\n\n')}\n\n---\n\n`;
 }
 
-// ---- Option A: Anthropic API ----
-async function executeViaApi(task: Task, context: ChatContextMessage[], apiKey: string): Promise<string> {
+async function executeViaApi(task: Task, context: ChatContextMessage[], apiKey: string): Promise<ExecuteResult> {
   log.info(`executing task ${task.id} via Anthropic API`);
   const client = new Anthropic({ apiKey });
 
@@ -52,12 +64,9 @@ async function executeViaApi(task: Task, context: ChatContextMessage[], apiKey: 
     messages,
   });
 
-  const out = res.content
-    .map((c) => (c.type === 'text' ? c.text : ''))
-    .join('\n')
-    .trim();
+  const out = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n').trim();
   if (!out) throw new Error('Empty response from Anthropic API');
-  return out;
+  return { output: out, sessionId: null };
 }
 
 function resolveCliPath(cliPath: string): string {
@@ -70,20 +79,34 @@ function resolveCliPath(cliPath: string): string {
   return cliPath;
 }
 
-// ---- Option B: Claude Code CLI subprocess ----
-function executeViaCli(task: Task, context: ChatContextMessage[], cliPath: string): Promise<string> {
+function executeViaCli(
+  task: Task,
+  context: ChatContextMessage[],
+  cliPath: string,
+  opts: ExecuteOptions,
+): Promise<ExecuteResult> {
   const resolved = resolveCliPath(cliPath);
-  log.info(`executing task ${task.id} via Claude CLI (${resolved})`);
-  const prompt =
-    buildContextBlock(context) +
-    `Task: ${task.title}\n\nInstructions:\n${task.instructions}\n\nComplete this task and return the result only.`;
+  log.info(
+    `task ${task.id} via CLI (${resolved}) cwd=${opts.workingDir ?? '(default)'} resume=${opts.sessionId ?? '(new)'}`,
+  );
+
+  // If we have a Claude Code session to resume, let CC manage context fully.
+  // Otherwise seed the prompt with our own chat context.
+  const prompt = opts.sessionId
+    ? `Task: ${task.title}\n\nInstructions:\n${task.instructions}`
+    : buildContextBlock(context) +
+      `Task: ${task.title}\n\nInstructions:\n${task.instructions}\n\nComplete this task and return the result only.`;
+
+  const model = process.env.CLAUDE_MODEL || 'haiku';
+  const args = ['-p', prompt, '--model', model, '--output-format', 'json'];
+  if (opts.sessionId) args.push('--resume', opts.sessionId);
 
   return new Promise((resolve, reject) => {
-    const model = process.env.CLAUDE_MODEL || 'haiku';
-    const proc = spawn(resolved, ['-p', prompt, '--model', model, '--output-format', 'text'], {
+    const proc = spawn(resolved, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       windowsHide: true,
+      cwd: opts.workingDir || undefined,
     });
     let stdout = '';
     let stderr = '';
@@ -92,9 +115,18 @@ function executeViaCli(task: Task, context: ChatContextMessage[], cliPath: strin
     proc.on('error', (err) => reject(new Error(`Failed to spawn Claude CLI: ${err.message}`)));
     proc.on('close', (code) => {
       if (code !== 0) return reject(new Error(`Claude CLI exit ${code}: ${stderr || stdout}`));
-      const out = stdout.trim();
-      if (!out) return reject(new Error('Empty output from Claude CLI'));
-      resolve(out);
+      const trimmed = stdout.trim();
+      if (!trimmed) return reject(new Error('Empty output from Claude CLI'));
+      let output = trimmed;
+      let sessionId: string | null = null;
+      try {
+        const json = JSON.parse(trimmed);
+        output = json.result ?? json.response ?? json.text ?? trimmed;
+        sessionId = json.session_id ?? json.sessionId ?? null;
+      } catch {
+        // output-format json might not be supported in older CLI → plain text fallback
+      }
+      resolve({ output, sessionId });
     });
   });
 }

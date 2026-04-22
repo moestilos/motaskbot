@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import type { Project, Chat, Task } from '@motaskbot/shared/types';
+import type { Project, Chat, Task, ClaudeSession } from '@motaskbot/shared/types';
 
 const sb = getSupabase();
 
@@ -7,6 +7,7 @@ const state = {
   projects: [] as Project[],
   chats: [] as Chat[],
   tasks: [] as Task[],
+  sessions: [] as ClaudeSession[],
   currentProjectId: null as string | null,
   currentChatId: null as string | null,
 };
@@ -43,12 +44,17 @@ function renderChats() {
   ul.innerHTML =
     chats
       .map(
-        (c) => `
+        (c) => {
+          const tag = c.claude_session_id
+            ? `<span class="text-[10px] text-accent ml-1">⎋ CC</span>`
+            : '';
+          return `
       <li>
         <button data-id="${c.id}" class="chat-item w-full text-left px-2 py-1.5 rounded text-sm ${c.id === state.currentChatId ? 'bg-bg-elevated text-fg' : 'text-fg-muted hover:bg-bg-elevated hover:text-fg'}">
-          # ${escapeHtml(c.name)}
+          # ${escapeHtml(c.name)}${tag}
         </button>
-      </li>`
+      </li>`;
+        },
       )
       .join('') ||
     `<li class="text-[11px] text-fg-dim px-2 py-1">No chats yet.</li>`;
@@ -77,7 +83,14 @@ function renderTasks() {
   const project = state.projects.find((p) => p.id === state.currentProjectId);
   title.textContent = project?.name ?? '';
   const chat = state.chats.find((c) => c.id === state.currentChatId);
-  subtitle.textContent = chat ? `# ${chat.name}` : 'all chats';
+  if (chat) {
+    const bits = [`# ${chat.name}`];
+    if (chat.working_dir) bits.push(`📁 ${chat.working_dir}`);
+    if (chat.claude_session_id) bits.push(`⎋ ${chat.claude_session_id.slice(0, 8)}`);
+    subtitle.textContent = bits.join(' · ');
+  } else {
+    subtitle.textContent = 'all chats';
+  }
 
   const chatsForProject = state.chats.filter((c) => c.project_id === state.currentProjectId);
   const tasks = state.tasks
@@ -165,18 +178,55 @@ async function createProject() {
   selectProject(data.id);
 }
 
+function openChatModal() {
+  if (!state.currentProjectId) return;
+  const sel = $<HTMLSelectElement>('chat-session');
+  const sessions = [...state.sessions].sort(
+    (a, b) => new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime(),
+  );
+  sel.innerHTML =
+    `<option value="">— None (fresh session) —</option>` +
+    sessions
+      .map((s) => {
+        const preview = (s.preview ?? '').slice(0, 60).replace(/\n/g, ' ');
+        return `<option value="${s.session_id}" data-dir="${escapeAttr(s.project_dir)}">${escapeHtml(s.project_label)} · ${s.message_count}msg · ${preview}${preview.length >= 60 ? '…' : ''}</option>`;
+      })
+      .join('');
+  ($('chat-name') as HTMLInputElement).value = '';
+  ($('chat-working-dir') as HTMLInputElement).value = '';
+  sel.addEventListener('change', onSessionPick);
+  $('chat-modal').classList.remove('hidden');
+}
+
+function onSessionPick(e: Event) {
+  const opt = (e.target as HTMLSelectElement).selectedOptions[0];
+  const dir = opt?.dataset.dir ?? '';
+  ($('chat-working-dir') as HTMLInputElement).value = dir;
+  if (!($('chat-name') as HTMLInputElement).value && opt?.textContent) {
+    const label = opt.textContent.split(' · ')[0];
+    ($('chat-name') as HTMLInputElement).value = label;
+  }
+}
+
 async function createChat() {
   if (!state.currentProjectId) return;
-  const name = prompt('Chat name?');
-  if (!name) return;
+  const name = ($('chat-name') as HTMLInputElement).value.trim();
+  const session_id = ($('chat-session') as HTMLSelectElement).value || null;
+  const working_dir = ($('chat-working-dir') as HTMLInputElement).value.trim() || null;
+  if (!name) return alert('Name required.');
   const { data, error } = await sb
     .from('chats')
-    .insert({ project_id: state.currentProjectId, name })
+    .insert({ project_id: state.currentProjectId, name, claude_session_id: session_id, working_dir })
     .select()
     .single();
   if (error) return alert(error.message);
   state.chats.unshift(data);
+  $('chat-modal').classList.add('hidden');
   selectChat(data.id);
+}
+
+function escapeAttr(s: string) {
+  return s.replace(/"/g, '&quot;');
 }
 
 function openTaskModal() {
@@ -223,17 +273,20 @@ function openDetail(taskId: string) {
 
 // ---------- Loading + Realtime ----------
 async function load() {
-  const [projects, chats, tasks] = await Promise.all([
+  const [projects, chats, tasks, sessions] = await Promise.all([
     sb.from('projects').select('*').order('created_at', { ascending: false }),
     sb.from('chats').select('*').order('created_at', { ascending: false }),
     sb.from('tasks').select('*').order('created_at', { ascending: false }),
+    sb.from('claude_sessions').select('*').order('last_activity_at', { ascending: false }),
   ]);
   if (projects.error) console.error(projects.error);
   if (chats.error) console.error(chats.error);
   if (tasks.error) console.error(tasks.error);
+  if (sessions.error) console.error(sessions.error);
   state.projects = projects.data ?? [];
   state.chats = chats.data ?? [];
   state.tasks = tasks.data ?? [];
+  state.sessions = sessions.data ?? [];
   if (!state.currentProjectId && state.projects[0]) state.currentProjectId = state.projects[0].id;
   renderProjects();
   renderChats();
@@ -251,6 +304,14 @@ function subscribeRealtime() {
     applyChange(state.chats, payload);
     renderChats();
     renderTasks();
+  });
+  ch.on('postgres_changes', { event: '*', schema: 'public', table: 'claude_sessions' }, (payload) => {
+    const row = (payload.new ?? payload.old) as ClaudeSession;
+    const idx = state.sessions.findIndex((s) => s.session_id === row.session_id);
+    if (payload.eventType === 'DELETE') {
+      if (idx >= 0) state.sessions.splice(idx, 1);
+    } else if (idx >= 0) state.sessions[idx] = payload.new as ClaudeSession;
+    else state.sessions.unshift(payload.new as ClaudeSession);
   });
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
     applyChange(state.tasks, payload);
@@ -288,7 +349,12 @@ function setWorkerStatus(s: 'active' | 'idle' | 'unknown') {
 
 // ---------- Wire up ----------
 $('new-project-btn').addEventListener('click', createProject);
-$('new-chat-btn').addEventListener('click', createChat);
+$('new-chat-btn').addEventListener('click', openChatModal);
+$('chat-cancel').addEventListener('click', () => $('chat-modal').classList.add('hidden'));
+$('chat-create').addEventListener('click', createChat);
+$('chat-modal').addEventListener('click', (e) => {
+  if (e.target === $('chat-modal')) $('chat-modal').classList.add('hidden');
+});
 $('new-task-btn').addEventListener('click', openTaskModal);
 $('task-cancel').addEventListener('click', () => $('task-modal').classList.add('hidden'));
 $('task-create').addEventListener('click', createTask);
