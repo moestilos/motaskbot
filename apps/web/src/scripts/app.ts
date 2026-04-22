@@ -478,6 +478,7 @@ function openDetail(taskId: string) {
   } else {
     errWrap.classList.add('hidden');
   }
+  ($('detail-reply') as HTMLTextAreaElement).value = '';
   $('detail-modal').classList.remove('hidden');
   $('detail-modal').dataset.taskId = taskId;
 }
@@ -601,6 +602,34 @@ $('target-close').addEventListener('click', closeTargetModal);
 $('target-search').addEventListener('input', renderTargetList);
 $('target-modal').addEventListener('click', (e) => {
   if (e.target === $('target-modal')) closeTargetModal();
+});
+
+async function sendReplyToTask(replyText: string) {
+  const taskId = $('detail-modal').dataset.taskId;
+  if (!taskId) return;
+  const original = state.tasks.find((t) => t.id === taskId);
+  if (!original) return;
+  const text = replyText.trim();
+  if (!text) return alert('Write a reply first.');
+
+  const { error } = await sb.from('tasks').insert({
+    project_id: original.project_id,
+    chat_id: original.chat_id,
+    title: text.split('\n')[0].slice(0, 80) || 'Reply',
+    instructions: text,
+  });
+  if (error) return alert(error.message);
+
+  ($('detail-reply') as HTMLTextAreaElement).value = '';
+  $('detail-modal').classList.add('hidden');
+  setTab('tasks');
+}
+
+$('detail-reply-send')?.addEventListener('click', () => {
+  sendReplyToTask(($('detail-reply') as HTMLTextAreaElement).value);
+});
+$('detail-reply-yes')?.addEventListener('click', () => {
+  sendReplyToTask('sí, procede');
 });
 
 $('detail-close').addEventListener('click', () => $('detail-modal').classList.add('hidden'));

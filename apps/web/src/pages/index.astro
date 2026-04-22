@@ -221,6 +221,15 @@ import Layout from '../layouts/Layout.astro';
           <h3 class="text-[10px] uppercase tracking-wider text-status-failed mb-1">Error</h3>
           <pre id="detail-error" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded-md p-3 border border-status-failed/40"></pre>
         </div>
+        <div class="border-t border-border pt-4">
+          <h3 class="text-[10px] uppercase tracking-wider text-fg-muted mb-1.5">Reply / Continue</h3>
+          <textarea id="detail-reply" class="textarea min-h-[80px]" placeholder="e.g. 'sí, procede' or more instructions"></textarea>
+          <div class="flex gap-2 mt-2">
+            <button id="detail-reply-yes" class="btn-ghost flex-1 md:flex-none justify-center">Yes, proceed</button>
+            <button id="detail-reply-send" class="btn-primary flex-1 md:flex-none justify-center">Send reply</button>
+          </div>
+          <p class="text-[11px] text-fg-dim mt-1.5">Creates a new task in the same chat — Claude Code session resumes.</p>
+        </div>
       </div>
     </div>
   </div>
