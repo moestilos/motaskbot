@@ -147,7 +147,7 @@ html[data-theme="dracula"] {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200;
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 min-h-[44px];
     position: relative;
     overflow: hidden;
   }
@@ -173,13 +173,13 @@ html[data-theme="dracula"] {
   .btn-ghost { @apply btn text-fg-muted hover:text-fg hover:bg-bg-elevated/80; }
 
   .input {
-    @apply w-full px-3 py-2 rounded-md bg-bg-elevated border border-border text-fg placeholder:text-fg-dim focus:outline-none focus:border-accent transition-all duration-200 text-sm;
+    @apply w-full px-3 py-3 rounded-md bg-bg-elevated border border-border text-fg placeholder:text-fg-dim focus:outline-none focus:border-accent transition-all duration-200 text-sm;
   }
   .input:focus {
     box-shadow: 0 0 0 2px rgb(var(--color-accent) / 0.2);
   }
 
-  .textarea { @apply input resize-y min-h-[96px] font-mono; }
+  .textarea { @apply input resize-y min-h-[96px] md:min-h-[120px] font-mono; }
 
   .card {
     @apply bg-bg-raised border border-border/60 rounded-lg backdrop-blur-sm transition-all duration-300;
