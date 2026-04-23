@@ -15,7 +15,6 @@ const log = createLogger('worker');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || undefined;
 const CLAUDE_CLI = process.env.CLAUDE_CLI || 'claude';
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 5000);
 const MOTASKBOT_EMAIL = process.env.MOTASKBOT_EMAIL;
@@ -44,8 +43,11 @@ async function ensureAuth() {
   log.info(`worker authenticated as ${MOTASKBOT_EMAIL}`);
 }
 
-const claudeConfig = { apiKey: ANTHROPIC_API_KEY, cliPath: CLAUDE_CLI };
-log.info('claude backend', ANTHROPIC_API_KEY ? 'Anthropic API' : `CLI (${CLAUDE_CLI})`);
+const claudeConfig = { cliPath: CLAUDE_CLI };
+log.info('claude backend', `CLI (${CLAUDE_CLI}) — subscription only, no API billing`);
+if (process.env.ANTHROPIC_API_KEY) {
+  log.warn('ANTHROPIC_API_KEY detected in env — IGNORED. Worker is subscription-only.');
+}
 
 // In-flight guard to avoid double-processing
 const inFlight = new Set<string>();

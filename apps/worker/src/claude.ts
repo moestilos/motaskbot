@@ -1,12 +1,10 @@
 import { spawn, execSync } from 'node:child_process';
-import Anthropic from '@anthropic-ai/sdk';
 import type { Task, ChatContextMessage } from '@motaskbot/shared/types';
 import { createLogger } from './logger.js';
 
 const log = createLogger('claude');
 
 export interface ClaudeConfig {
-  apiKey?: string;
   cliPath?: string;
 }
 
@@ -32,9 +30,7 @@ export async function executeTaskWithClaude(
   config: ClaudeConfig,
   opts: ExecuteOptions = {},
 ): Promise<ExecuteResult> {
-  if (config.apiKey && !opts.sessionId && !opts.workingDir) {
-    return executeViaApi(task, context, config.apiKey);
-  }
+  // Subscription-only: always route through Claude Code CLI. No Anthropic API.
   return executeViaCli(task, context, config.cliPath ?? 'claude', opts);
 }
 
@@ -45,41 +41,6 @@ function buildContextBlock(context: ChatContextMessage[]): string {
     return `[${who}] ${m.content}`;
   });
   return `Previous conversation in this chat:\n\n${lines.join('\n\n')}\n\n---\n\n`;
-}
-
-async function executeViaApi(task: Task, context: ChatContextMessage[], apiKey: string): Promise<ExecuteResult> {
-  log.info(`executing task ${task.id} via Anthropic API`);
-  const client = new Anthropic({ apiKey });
-
-  const messages: Anthropic.MessageParam[] = [];
-  for (const m of context) {
-    if (m.role === 'user' || m.role === 'assistant') {
-      messages.push({ role: m.role, content: m.content });
-    }
-  }
-  messages.push({
-    role: 'user',
-    content: `Task: ${task.title}\n\nInstructions:\n${task.instructions}`,
-  });
-
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system:
-      'You are an AI task executor inside MoTaskBot. Complete the user task using the conversation context. Return a clear, actionable response.',
-    messages,
-  });
-
-  const out = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n').trim();
-  if (!out) throw new Error('Empty response from Anthropic API');
-  return {
-    output: out,
-    sessionId: null,
-    inputTokens: res.usage?.input_tokens ?? null,
-    outputTokens: res.usage?.output_tokens ?? null,
-    totalCostUsd: null,
-    durationMs: null,
-  };
 }
 
 function resolveCliPath(cliPath: string): string {
