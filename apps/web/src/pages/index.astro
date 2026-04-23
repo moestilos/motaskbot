@@ -38,6 +38,15 @@ import Layout from '../layouts/Layout.astro';
     </form>
   </div>
 
+  <!-- Animated starfield (3 parallax layers + shooting stars) -->
+  <div class="starfield" aria-hidden="true">
+    <div class="stars-layer stars-small"></div>
+    <div class="stars-layer stars-medium"></div>
+    <div class="stars-layer stars-large"></div>
+    <div class="shooting-star"></div>
+    <div class="shooting-star s2"></div>
+  </div>
+
   <!-- Floating background orbs -->
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
@@ -110,15 +119,18 @@ import Layout from '../layouts/Layout.astro';
               <option value="">All chats</option>
             </select>
             <select id="tasks-sort" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
-              <option value="newest">↓ Newest</option>
-              <option value="oldest">↑ Oldest</option>
-              <option value="cost">$ Cost</option>
-              <option value="duration">⏱ Duration</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="cost">By cost</option>
+              <option value="duration">By duration</option>
             </select>
-            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-3 text-xs !rounded-full border border-border flex-shrink-0 md:ml-auto md:border-0" aria-label="Clear completed">🧹 Clear done</button>
+            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-3 text-xs !rounded-full border border-border flex-shrink-0 md:ml-auto md:border-0 inline-flex items-center gap-1" aria-label="Clear completed">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+              Clear done
+            </button>
           </div>
           <div id="tasks-empty" class="h-full flex flex-col items-center justify-center text-fg-dim text-sm text-center px-6 py-20 gap-2">
-            <div class="text-4xl mb-2">✨</div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-accent"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>
             <div>No tasks yet.</div>
             <div class="text-[11px]">Tap <span class="text-accent">+</span> to send one to Claude.</div>
           </div>
@@ -149,9 +161,9 @@ import Layout from '../layouts/Layout.astro';
               </div>
               <div class="flex items-center justify-between mt-1.5 px-1">
                 <select id="chat-model" class="bg-transparent text-[11px] text-fg-muted border-none !p-0 !pr-4 focus:outline-none cursor-pointer">
-                  <option value="haiku">⚡ haiku</option>
-                  <option value="sonnet">✦ sonnet</option>
-                  <option value="opus">◆ opus</option>
+                  <option value="haiku">haiku (fast)</option>
+                  <option value="sonnet">sonnet (balanced)</option>
+                  <option value="opus">opus (max)</option>
                 </select>
                 <span class="text-[10px] text-fg-dim">No tools · pure chat</span>
               </div>
@@ -438,22 +450,73 @@ import Layout from '../layouts/Layout.astro';
         <h2 class="text-base font-semibold">Choose Theme</h2>
         <button id="theme-close" aria-label="Close" class="btn-ghost !p-2 !text-xl rounded-full">×</button>
       </div>
-      <div class="p-3 space-y-2 overflow-y-auto">
-        <button data-theme="dark" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all">
-          <div class="text-sm font-medium">Dark</div>
-          <div class="text-xs text-fg-muted mt-0.5">Deep blacks with purple accent</div>
+      <div class="p-3 space-y-2 overflow-y-auto max-h-[70dvh]">
+        <!-- Custom accent color picker -->
+        <div class="px-4 py-3 rounded-md border border-border bg-bg-elevated/50">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-medium">Custom accent</div>
+              <div class="text-xs text-fg-muted mt-0.5">Override any theme's accent color</div>
+            </div>
+            <input id="custom-accent" type="color" class="w-12 h-10 rounded-md border border-border bg-transparent cursor-pointer" value="#7c5cff" />
+          </div>
+          <button id="custom-accent-reset" class="text-[11px] text-accent underline mt-2">Reset to theme default</button>
+        </div>
+
+        <div class="text-[10px] uppercase tracking-wider text-fg-muted px-2 pt-2">Dark palettes</div>
+        <button data-theme="dark" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#0a0a0b,#7c5cff)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Dark</span><span class="text-xs text-fg-muted">Deep blacks, purple accent</span></span>
         </button>
-        <button data-theme="nord" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all">
-          <div class="text-sm font-medium">Nord</div>
-          <div class="text-xs text-fg-muted mt-0.5">Cool arctic blues</div>
+        <button data-theme="catppuccin" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#1e1e2e,#cba6f7)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Catppuccin Mocha</span><span class="text-xs text-fg-muted">Soothing pastels</span></span>
         </button>
-        <button data-theme="solarized" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all">
-          <div class="text-sm font-medium">Solarized</div>
-          <div class="text-xs text-fg-muted mt-0.5">Precision colors for machines and people</div>
+        <button data-theme="tokyo-night" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#1a1b26,#7dcfff)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Tokyo Night</span><span class="text-xs text-fg-muted">Neon-lit midnight</span></span>
         </button>
-        <button data-theme="dracula" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all">
-          <div class="text-sm font-medium">Dracula</div>
-          <div class="text-xs text-fg-muted mt-0.5">Dark vibrant theme</div>
+        <button data-theme="rose-pine" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#191724,#ebbcba)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Rosé Pine</span><span class="text-xs text-fg-muted">Soho vibes, warm & dark</span></span>
+        </button>
+        <button data-theme="dracula" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#282a36,#bd93f9)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Dracula</span><span class="text-xs text-fg-muted">Classic vibrant dark</span></span>
+        </button>
+        <button data-theme="one-dark" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#282c34,#61afef)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">One Dark</span><span class="text-xs text-fg-muted">Atom's classic</span></span>
+        </button>
+        <button data-theme="monokai" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#272822,#f92672)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Monokai</span><span class="text-xs text-fg-muted">Vibrant, punchy pinks</span></span>
+        </button>
+        <button data-theme="github-dark" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#0d1117,#58a6ff)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">GitHub Dark</span><span class="text-xs text-fg-muted">GitHub native dark</span></span>
+        </button>
+        <button data-theme="nord" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#2e3440,#bf616a)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Nord</span><span class="text-xs text-fg-muted">Cool arctic blues</span></span>
+        </button>
+        <button data-theme="solarized" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#002b36,#2aa198)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Solarized</span><span class="text-xs text-fg-muted">Precision colors</span></span>
+        </button>
+        <button data-theme="gruvbox" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#282828,#d79921)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Gruvbox</span><span class="text-xs text-fg-muted">Retro-warm palette</span></span>
+        </button>
+        <button data-theme="ayu" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#0b0e13,#ffb454)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Ayu Dark</span><span class="text-xs text-fg-muted">Minimal dark-amber</span></span>
+        </button>
+
+        <div class="text-[10px] uppercase tracking-wider text-fg-muted px-2 pt-2">Light</div>
+        <button data-theme="light" class="theme-option w-full text-left px-4 py-3 rounded-md border border-border hover:border-accent hover:bg-bg-elevated transition-all flex items-center gap-3">
+          <span class="theme-swatch" style="background:linear-gradient(135deg,#fafafa,#7c5cff)"></span>
+          <span class="flex-1"><span class="text-sm font-medium block">Light</span><span class="text-xs text-fg-muted">Clean bright theme</span></span>
         </button>
       </div>
     </div>

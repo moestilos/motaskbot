@@ -132,13 +132,15 @@ function taskCardHtml(t: Task): string {
     ? t.result.slice(0, 180).replace(/\s+/g, ' ')
     : t.instructions.slice(0, 180).replace(/\s+/g, ' ');
   const projectBit = project ? `<span class="truncate">${escapeHtml(project.name)}</span>` : '';
-  const chatBit = chat?.claude_session_id ? `<span class="text-accent">⎋</span>` : '';
+  const chatBit = chat?.claude_session_id
+    ? `<span class="text-accent inline-flex items-center" title="Claude Code session" aria-label="Claude Code"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>`
+    : '';
   const pinned = state.pinnedIds.has(t.id);
   const tokens = ((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0);
   const cost = Number((t as any).total_cost_usd ?? 0);
   const elapsedLabel =
     t.status === 'running'
-      ? `<span class="text-status-running" data-elapsed="${t.created_at}">⏱ ${elapsed(t.created_at)}</span><span>·</span>`
+      ? `<span class="text-status-running inline-flex items-center gap-0.5" data-elapsed="${t.created_at}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${elapsed(t.created_at)}</span><span>·</span>`
       : '';
 
   // Quick actions per status
@@ -166,7 +168,7 @@ function taskCardHtml(t: Task): string {
 
   return `
     <li class="relative ${pinned ? 'pinned' : ''}">
-      <span class="pin-star" aria-hidden="true">★</span>
+      <span class="pin-star" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
       <button data-id="${t.id}" class="task-item w-full text-left card px-4 py-3 active:bg-bg-elevated transition-colors">
         <div class="flex items-start gap-3">
           <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
@@ -235,7 +237,7 @@ function renderTasks() {
     const anyFilter = state.filterChat || state.filterStatus || q;
     if (anyFilter) {
       empty.innerHTML = `
-        <div class="text-4xl mb-2">🔍</div>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-fg-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <div>No tasks match these filters.</div>
         <button id="clear-filters-btn" class="text-accent text-xs mt-2 underline">Clear filters</button>
       `;
@@ -249,7 +251,7 @@ function renderTasks() {
       });
     } else {
       empty.innerHTML = `
-        <div class="text-4xl mb-2">✨</div>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-accent"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>
         <div>No tasks yet.</div>
         <div class="text-[11px]">Tap <span class="text-accent">+</span> to send one to Claude.</div>
       `;
@@ -267,7 +269,7 @@ function renderTasks() {
 
   let html = '';
   if (sortedPinned.length > 0) {
-    html += `<li class="date-group">★ Pinned</li>`;
+    html += `<li class="date-group inline-flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Pinned</li>`;
     html += sortedPinned.map(taskCardHtml).join('');
   }
 
@@ -325,7 +327,10 @@ setInterval(() => {
   if (state.tab !== 'tasks') return;
   document.querySelectorAll<HTMLElement>('[data-elapsed]').forEach((el) => {
     const iso = el.dataset.elapsed!;
-    el.textContent = `⏱ ${elapsed(iso)}`;
+    // Preserve SVG by only updating the trailing text node
+    const last = el.lastChild;
+    if (last && last.nodeType === Node.TEXT_NODE) last.textContent = elapsed(iso);
+    else el.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${elapsed(iso)}`;
   });
 }, 2000);
 
@@ -407,7 +412,7 @@ function renderProjects() {
             <div class="min-w-0 flex-1">
               <div class="text-sm font-medium truncate flex items-center gap-1.5">
                 ${escapeHtml(p.name)}
-                ${p.source === 'claude_code' ? '<span class="text-[10px] text-accent">⎋ CC</span>' : ''}
+                ${p.source === 'claude_code' ? '<span class="text-[10px] text-accent font-semibold">CC</span>' : ''}
               </div>
               ${p.working_dir ? `<div class="text-[11px] text-fg-dim font-mono truncate mt-0.5">${escapeHtml(p.working_dir)}</div>` : ''}
               <div class="text-[11px] text-fg-muted mt-1">${chatCount} chats · ${taskCount} tasks</div>
@@ -468,7 +473,7 @@ function renderSessions() {
           </div>
           <div class="text-xs text-fg-muted line-clamp-2">${escapeHtml(preview)}</div>
           <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5 flex-wrap">
-            <span>⎋ ${s.session_id.slice(0, 8)}</span>
+            <span class="inline-flex items-center gap-1 text-accent"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>${s.session_id.slice(0, 8)}</span>
             <span>·</span>
             <span>${s.message_count} msg</span>
           </div>
@@ -747,7 +752,7 @@ function renderUsage() {
       .map(
         ([m, v]) => `<li class="flex items-center justify-between gap-2 py-1">
         <span class="font-medium">${escapeHtml(m)}</span>
-        <span class="text-fg-muted text-xs">${v.n} · ${fmtNum(v.i)}↓ ${fmtNum(v.o)}↑${v.cost > 0 ? ' · $' + v.cost.toFixed(4) : ''}</span>
+        <span class="text-fg-muted text-xs">${v.n} · in ${fmtNum(v.i)} · out ${fmtNum(v.o)}${v.cost > 0 ? ' · $' + v.cost.toFixed(4) : ''}</span>
       </li>`,
       )
       .join('');
@@ -805,7 +810,7 @@ function applyTarget() {
   const sub = $('target-sub');
   if (state.target) {
     label.textContent = state.target.label;
-    sub.textContent = state.target.sub || (state.target.kind === 'session' ? '⎋ Claude Code session' : '');
+    sub.textContent = state.target.sub || (state.target.kind === 'session' ? 'Claude Code session' : '');
   } else {
     label.textContent = 'Choose a session or project';
     sub.textContent = 'Tap to pick';
@@ -1130,6 +1135,11 @@ function loadTheme() {
   const saved = localStorage.getItem('motaskbot-theme');
   state.theme = saved || 'dark';
   applyTheme(state.theme);
+  applyCustomAccent();
+  // Sync custom accent input value
+  const savedAccent = localStorage.getItem('motaskbot-custom-accent');
+  const input = document.getElementById('custom-accent') as HTMLInputElement | null;
+  if (input && savedAccent) input.value = savedAccent;
 }
 
 function applyTheme(theme: string) {
@@ -1138,9 +1148,54 @@ function applyTheme(theme: string) {
   localStorage.setItem('motaskbot-theme', theme);
   const options = document.querySelectorAll<HTMLButtonElement>('.theme-option');
   options.forEach(btn => {
-    btn.classList.toggle('border-accent bg-bg-elevated', btn.dataset.theme === theme);
+    btn.classList.toggle('border-accent', btn.dataset.theme === theme);
+    btn.classList.toggle('bg-bg-elevated', btn.dataset.theme === theme);
     btn.classList.toggle('border-border', btn.dataset.theme !== theme);
   });
+  // Re-apply custom accent on top of new theme if user has one set
+  applyCustomAccent();
+}
+
+// Hex → "r g b" RGB tuple for CSS var
+function hexToRgbTuple(hex: string): string | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+}
+
+// Shift accent hex slightly darker for hover
+function shiftHex(hex: string, amt = -15): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
+  const b = Math.max(0, Math.min(255, (n & 255) + amt));
+  return `${r} ${g} ${b}`;
+}
+
+function applyCustomAccent() {
+  const hex = localStorage.getItem('motaskbot-custom-accent');
+  if (!hex) {
+    document.documentElement.style.removeProperty('--color-accent');
+    document.documentElement.style.removeProperty('--color-accent-hover');
+    return;
+  }
+  const rgb = hexToRgbTuple(hex);
+  if (!rgb) return;
+  document.documentElement.style.setProperty('--color-accent', rgb);
+  document.documentElement.style.setProperty('--color-accent-hover', shiftHex(hex, -20));
+}
+
+function setCustomAccent(hex: string) {
+  localStorage.setItem('motaskbot-custom-accent', hex);
+  applyCustomAccent();
+}
+
+function resetCustomAccent() {
+  localStorage.removeItem('motaskbot-custom-accent');
+  applyCustomAccent();
 }
 
 function openThemeModal() {
@@ -1266,7 +1321,7 @@ $('detail-copy')?.addEventListener('click', async () => {
     const btn = document.getElementById('detail-copy');
     if (btn) {
       const original = btn.innerHTML;
-      btn.innerHTML = '✓';
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       setTimeout(() => (btn.innerHTML = original), 1200);
     }
   } catch {
@@ -1387,6 +1442,16 @@ document.querySelectorAll<HTMLButtonElement>('.theme-option').forEach(btn => {
 });
 $('theme-modal').addEventListener('click', (e) => {
   if (e.target === $('theme-modal')) closeThemeModal();
+});
+
+// Custom accent pickers
+document.getElementById('custom-accent')?.addEventListener('input', (e) => {
+  setCustomAccent((e.target as HTMLInputElement).value);
+});
+document.getElementById('custom-accent-reset')?.addEventListener('click', () => {
+  resetCustomAccent();
+  const input = document.getElementById('custom-accent') as HTMLInputElement | null;
+  if (input) input.value = '#7c5cff';
 });
 
 // Run auth gate FIRST so login screen shows even if later wire-up breaks.

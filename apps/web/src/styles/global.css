@@ -88,6 +88,159 @@ html[data-theme="dracula"] {
   --color-status-failed: 255 85 85;
 }
 
+html[data-theme="catppuccin"] {
+  --color-bg: 30 30 46;
+  --color-bg-raised: 49 50 68;
+  --color-bg-elevated: 69 71 90;
+  --color-border: 88 91 112;
+  --color-border-subtle: 69 71 90;
+  --color-fg: 205 214 244;
+  --color-fg-muted: 166 173 200;
+  --color-fg-dim: 127 132 156;
+  --color-accent: 203 166 247;
+  --color-accent-hover: 180 140 230;
+  --color-status-pending: 127 132 156;
+  --color-status-running: 249 226 175;
+  --color-status-completed: 166 227 161;
+  --color-status-failed: 243 139 168;
+}
+
+html[data-theme="tokyo-night"] {
+  --color-bg: 26 27 38;
+  --color-bg-raised: 36 40 59;
+  --color-bg-elevated: 41 46 66;
+  --color-border: 65 72 104;
+  --color-border-subtle: 41 46 66;
+  --color-fg: 192 202 245;
+  --color-fg-muted: 154 165 206;
+  --color-fg-dim: 86 95 137;
+  --color-accent: 125 207 255;
+  --color-accent-hover: 97 175 239;
+  --color-status-pending: 86 95 137;
+  --color-status-running: 224 175 104;
+  --color-status-completed: 158 206 106;
+  --color-status-failed: 247 118 142;
+}
+
+html[data-theme="rose-pine"] {
+  --color-bg: 25 23 36;
+  --color-bg-raised: 31 29 46;
+  --color-bg-elevated: 38 35 58;
+  --color-border: 68 65 90;
+  --color-border-subtle: 38 35 58;
+  --color-fg: 224 222 244;
+  --color-fg-muted: 144 140 170;
+  --color-fg-dim: 110 106 134;
+  --color-accent: 235 188 186;
+  --color-accent-hover: 196 167 231;
+  --color-status-pending: 110 106 134;
+  --color-status-running: 246 193 119;
+  --color-status-completed: 156 207 216;
+  --color-status-failed: 235 111 146;
+}
+
+html[data-theme="gruvbox"] {
+  --color-bg: 40 40 40;
+  --color-bg-raised: 50 48 47;
+  --color-bg-elevated: 60 56 54;
+  --color-border: 80 73 69;
+  --color-border-subtle: 60 56 54;
+  --color-fg: 235 219 178;
+  --color-fg-muted: 189 174 147;
+  --color-fg-dim: 146 131 116;
+  --color-accent: 215 153 33;
+  --color-accent-hover: 250 189 47;
+  --color-status-pending: 146 131 116;
+  --color-status-running: 250 189 47;
+  --color-status-completed: 152 151 26;
+  --color-status-failed: 204 36 29;
+}
+
+html[data-theme="one-dark"] {
+  --color-bg: 40 44 52;
+  --color-bg-raised: 52 57 68;
+  --color-bg-elevated: 62 68 81;
+  --color-border: 76 82 99;
+  --color-border-subtle: 62 68 81;
+  --color-fg: 171 178 191;
+  --color-fg-muted: 130 137 151;
+  --color-fg-dim: 92 99 112;
+  --color-accent: 97 175 239;
+  --color-accent-hover: 198 120 221;
+  --color-status-pending: 92 99 112;
+  --color-status-running: 229 192 123;
+  --color-status-completed: 152 195 121;
+  --color-status-failed: 224 108 117;
+}
+
+html[data-theme="monokai"] {
+  --color-bg: 39 40 34;
+  --color-bg-raised: 51 53 48;
+  --color-bg-elevated: 62 64 58;
+  --color-border: 85 87 78;
+  --color-border-subtle: 62 64 58;
+  --color-fg: 248 248 242;
+  --color-fg-muted: 199 199 182;
+  --color-fg-dim: 117 113 94;
+  --color-accent: 249 38 114;
+  --color-accent-hover: 174 129 255;
+  --color-status-pending: 117 113 94;
+  --color-status-running: 253 151 31;
+  --color-status-completed: 166 226 46;
+  --color-status-failed: 249 38 114;
+}
+
+html[data-theme="ayu"] {
+  --color-bg: 11 14 19;
+  --color-bg-raised: 17 21 28;
+  --color-bg-elevated: 22 27 37;
+  --color-border: 45 55 72;
+  --color-border-subtle: 22 27 37;
+  --color-fg: 191 191 191;
+  --color-fg-muted: 149 153 162;
+  --color-fg-dim: 92 103 115;
+  --color-accent: 255 180 84;
+  --color-accent-hover: 255 204 102;
+  --color-status-pending: 92 103 115;
+  --color-status-running: 255 180 84;
+  --color-status-completed: 170 215 143;
+  --color-status-failed: 242 104 104;
+}
+
+html[data-theme="github-dark"] {
+  --color-bg: 13 17 23;
+  --color-bg-raised: 22 27 34;
+  --color-bg-elevated: 33 38 45;
+  --color-border: 48 54 61;
+  --color-border-subtle: 33 38 45;
+  --color-fg: 201 209 217;
+  --color-fg-muted: 139 148 158;
+  --color-fg-dim: 110 118 129;
+  --color-accent: 88 166 255;
+  --color-accent-hover: 121 192 255;
+  --color-status-pending: 110 118 129;
+  --color-status-running: 219 154 4;
+  --color-status-completed: 63 185 80;
+  --color-status-failed: 248 81 73;
+}
+
+html[data-theme="light"] {
+  --color-bg: 250 250 250;
+  --color-bg-raised: 255 255 255;
+  --color-bg-elevated: 244 244 245;
+  --color-border: 228 228 231;
+  --color-border-subtle: 244 244 245;
+  --color-fg: 24 24 27;
+  --color-fg-muted: 82 82 91;
+  --color-fg-dim: 161 161 170;
+  --color-accent: 124 92 255;
+  --color-accent-hover: 107 74 239;
+  --color-status-pending: 161 161 170;
+  --color-status-running: 234 179 8;
+  --color-status-completed: 34 197 94;
+  --color-status-failed: 239 68 68;
+}
+
 @layer base {
   html, body {
     @apply bg-bg text-fg antialiased h-full;
@@ -323,6 +476,120 @@ html[data-theme="dracula"] {
     box-shadow: 0 4px 20px rgb(var(--color-accent) / 0.4);
   }
 
+  /* Animated starfield background (3 parallax layers) */
+  .starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .stars-layer {
+    position: absolute;
+    inset: -50% -50% -50% -50%;
+    background-repeat: repeat;
+    will-change: transform, opacity;
+  }
+  .stars-small {
+    background-image:
+      radial-gradient(1px 1px at 25px 5px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(1px 1px at 50px 25px, rgb(var(--color-fg) / 0.6), transparent),
+      radial-gradient(1px 1px at 125px 20px, rgb(var(--color-fg) / 0.7), transparent),
+      radial-gradient(1px 1px at 180px 60px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(1px 1px at 100px 100px, rgb(var(--color-fg) / 0.5), transparent),
+      radial-gradient(1px 1px at 200px 130px, rgb(var(--color-fg) / 0.8), transparent),
+      radial-gradient(1px 1px at 30px 170px, rgb(var(--color-fg) / 0.6), transparent),
+      radial-gradient(1px 1px at 70px 200px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(1px 1px at 160px 230px, rgb(var(--color-fg) / 0.7), transparent),
+      radial-gradient(1px 1px at 220px 260px, rgb(var(--color-fg) / 0.5), transparent);
+    background-size: 250px 300px;
+    animation: twinkle-fast 6s ease-in-out infinite, drift-slow 180s linear infinite;
+    opacity: 0.5;
+  }
+  .stars-medium {
+    background-image:
+      radial-gradient(1.5px 1.5px at 80px 40px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(1.5px 1.5px at 150px 100px, rgb(var(--color-accent) / 0.8), transparent),
+      radial-gradient(1.5px 1.5px at 250px 180px, rgb(var(--color-fg) / 0.8), transparent),
+      radial-gradient(1.5px 1.5px at 50px 220px, rgb(var(--color-fg) / 0.7), transparent),
+      radial-gradient(1.5px 1.5px at 300px 280px, rgb(var(--color-accent) / 0.6), transparent),
+      radial-gradient(1.5px 1.5px at 180px 340px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(1.5px 1.5px at 360px 50px, rgb(var(--color-fg) / 0.5), transparent);
+    background-size: 400px 400px;
+    animation: twinkle-med 10s ease-in-out infinite, drift-med 240s linear infinite;
+    opacity: 0.4;
+  }
+  .stars-large {
+    background-image:
+      radial-gradient(2.2px 2.2px at 120px 80px, rgb(var(--color-accent) / 1), transparent),
+      radial-gradient(2px 2px at 320px 200px, rgb(var(--color-fg) / 0.9), transparent),
+      radial-gradient(2.2px 2.2px at 480px 320px, rgb(var(--color-status-completed) / 0.7), transparent),
+      radial-gradient(2px 2px at 150px 420px, rgb(var(--color-fg) / 0.8), transparent),
+      radial-gradient(2.2px 2.2px at 550px 100px, rgb(var(--color-accent) / 0.8), transparent);
+    background-size: 600px 500px;
+    animation: twinkle-slow 14s ease-in-out infinite, drift-fast 120s linear infinite reverse;
+    opacity: 0.6;
+  }
+  /* Shooting star (occasional) */
+  .shooting-star {
+    position: absolute;
+    top: 20%;
+    left: -10%;
+    width: 100px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgb(var(--color-fg) / 0.9), transparent);
+    animation: shoot 8s ease-in infinite;
+    animation-delay: 3s;
+    opacity: 0;
+  }
+  .shooting-star.s2 {
+    top: 60%;
+    animation-duration: 11s;
+    animation-delay: 7s;
+  }
+  @keyframes twinkle-fast {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.9; }
+  }
+  @keyframes twinkle-med {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+  @keyframes twinkle-slow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  @keyframes drift-slow {
+    to { transform: translate3d(250px, 300px, 0); }
+  }
+  @keyframes drift-med {
+    to { transform: translate3d(-400px, 400px, 0); }
+  }
+  @keyframes drift-fast {
+    to { transform: translate3d(600px, -500px, 0); }
+  }
+  @keyframes shoot {
+    0% { transform: translate(0, 0) rotate(20deg); opacity: 0; }
+    5% { opacity: 1; }
+    40% { opacity: 1; }
+    60% { transform: translate(120vw, 40vh) rotate(20deg); opacity: 0; }
+    100% { transform: translate(120vw, 40vh) rotate(20deg); opacity: 0; }
+  }
+
+  /* Light theme: invert star colors + hide heavy gradient */
+  html[data-theme="light"] .stars-layer { filter: invert(1); opacity: 0.15 !important; }
+  html[data-theme="light"] body::before { opacity: 0.4; }
+  html[data-theme="light"] body::after { opacity: 0.3; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stars-layer, .shooting-star { animation: none !important; }
+  }
+  /* Less stars on mobile for battery */
+  @media (max-width: 767px) {
+    .stars-medium, .stars-large { opacity: 0.25; }
+    .shooting-star { display: none; }
+  }
+
   /* iOS safe-area helpers */
   .pt-safe { padding-top: env(safe-area-inset-top); }
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -418,5 +685,15 @@ html[data-theme="dracula"] {
   /* Task quick-action button (retry/duplicate/cancel) */
   .task-action {
     @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-bg-elevated text-fg-muted hover:text-accent active:scale-95 transition-all;
+  }
+
+  /* Theme selector preview swatch */
+  .theme-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    border: 1px solid rgb(var(--color-border));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
   }
 }
