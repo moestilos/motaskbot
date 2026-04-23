@@ -359,7 +359,19 @@ import Layout from '../layouts/Layout.astro';
           </div>
           <select id="task-skill" class="input">
             <option value="">None (plain prompt)</option>
-            <option value="ui-ux-pro-max">UI/UX Pro Max — design intelligence</option>
+            <optgroup label="Design">
+              <option value="ui-ux-pro-max">UI/UX Pro Max — design intelligence</option>
+            </optgroup>
+            <optgroup label="n8n workflow automation">
+              <option value="n8n-full">n8n full stack (all 7 n8n skills + MCP)</option>
+              <option value="n8n-mcp-tools-expert">n8n MCP tools expert</option>
+              <option value="n8n-workflow-patterns">n8n workflow patterns</option>
+              <option value="n8n-node-configuration">n8n node configuration</option>
+              <option value="n8n-validation-expert">n8n validation expert</option>
+              <option value="n8n-expression-syntax">n8n expression syntax</option>
+              <option value="n8n-code-javascript">n8n Code node (JavaScript)</option>
+              <option value="n8n-code-python">n8n Code node (Python)</option>
+            </optgroup>
           </select>
           <p class="text-[10px] text-fg-dim mt-1">Prepends skill trigger so Claude auto-loads it. Skill must be installed in ~/.claude/skills/.</p>
         </div>

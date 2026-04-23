@@ -933,7 +933,24 @@ function renderTargetList() {
 // ---------- Submit task ----------
 // Map of skill id → trigger prefix injected before user prompt
 const SKILL_PREFIXES: Record<string, string> = {
-  'ui-ux-pro-max': 'Use the ui-ux-pro-max skill from ~/.claude/skills/ to guide design decisions. Apply its reasoning engine (patterns, styles, palettes, typography, anti-patterns, pre-delivery checklist).\n\n',
+  'ui-ux-pro-max':
+    'Use the ui-ux-pro-max skill from ~/.claude/skills/ to guide design decisions. Apply its reasoning engine (patterns, styles, palettes, typography, anti-patterns, pre-delivery checklist).\n\n',
+  'n8n-full':
+    'Use the n8n-mcp MCP server tools (search_nodes, get_node, validate_node, search_templates, validate_workflow) and ALL n8n skills from ~/.claude/skills/ (n8n-mcp-tools-expert, n8n-workflow-patterns, n8n-node-configuration, n8n-validation-expert, n8n-expression-syntax, n8n-code-javascript, n8n-code-python). Follow the workflow process: documentation → templates → discovery → configuration → validation → build. Never trust default parameter values.\n\n',
+  'n8n-mcp-tools-expert':
+    'Use the n8n-mcp-tools-expert skill from ~/.claude/skills/ and the n8n-mcp MCP server. Follow its tool-usage patterns.\n\n',
+  'n8n-workflow-patterns':
+    'Use the n8n-workflow-patterns skill from ~/.claude/skills/. Apply proven n8n architectural patterns.\n\n',
+  'n8n-node-configuration':
+    'Use the n8n-node-configuration skill from ~/.claude/skills/. Configure nodes operation-aware.\n\n',
+  'n8n-validation-expert':
+    'Use the n8n-validation-expert skill from ~/.claude/skills/. Interpret validation errors and fix them.\n\n',
+  'n8n-expression-syntax':
+    'Use the n8n-expression-syntax skill from ~/.claude/skills/. Apply correct {{}} expression patterns.\n\n',
+  'n8n-code-javascript':
+    'Use the n8n-code-javascript skill from ~/.claude/skills/. Write effective JavaScript inside n8n Code nodes.\n\n',
+  'n8n-code-python':
+    'Use the n8n-code-python skill from ~/.claude/skills/. Write effective Python inside n8n Code nodes.\n\n',
 };
 
 async function submitTask() {
