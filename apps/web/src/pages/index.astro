@@ -96,18 +96,26 @@ import Layout from '../layouts/Layout.astro';
 
         <!-- View: Tasks feed -->
         <div id="view-tasks" class="view">
-          <div class="px-3 md:px-6 pt-3 pb-1 flex items-center gap-2 overflow-x-auto scrollbar-none md:flex-wrap">
+          <!-- Status chips (swipe on mobile) -->
+          <div class="px-3 md:px-6 pt-3 pb-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            <button data-status-chip="" class="status-chip active">All <span class="chip-count" data-status-count=""></span></button>
+            <button data-status-chip="running" class="status-chip">Running <span class="chip-count" data-status-count="running"></span></button>
+            <button data-status-chip="failed" class="status-chip">Failed <span class="chip-count" data-status-count="failed"></span></button>
+            <button data-status-chip="pending" class="status-chip">Pending <span class="chip-count" data-status-count="pending"></span></button>
+            <button data-status-chip="completed" class="status-chip">Done <span class="chip-count" data-status-count="completed"></span></button>
+          </div>
+          <!-- Chat + sort + clear toolbar -->
+          <div class="px-3 md:px-6 pt-1 pb-1 flex items-center gap-2 overflow-x-auto scrollbar-none">
             <select id="tasks-filter-chat" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
               <option value="">All chats</option>
             </select>
-            <select id="tasks-filter-status" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
-              <option value="">All statuses</option>
-              <option value="pending">pending</option>
-              <option value="running">running</option>
-              <option value="completed">completed</option>
-              <option value="failed">failed</option>
+            <select id="tasks-sort" class="input !w-auto !py-1.5 !px-3 text-xs !rounded-full flex-shrink-0">
+              <option value="newest">↓ Newest</option>
+              <option value="oldest">↑ Oldest</option>
+              <option value="cost">$ Cost</option>
+              <option value="duration">⏱ Duration</option>
             </select>
-            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-3 text-xs !rounded-full border border-border flex-shrink-0 md:ml-auto md:border-0">Clear completed</button>
+            <button id="tasks-clear-completed" class="btn-ghost !py-1.5 !px-3 text-xs !rounded-full border border-border flex-shrink-0 md:ml-auto md:border-0" aria-label="Clear completed">🧹 Clear done</button>
           </div>
           <div id="tasks-empty" class="h-full flex flex-col items-center justify-center text-fg-dim text-sm text-center px-6 py-20 gap-2">
             <div class="text-4xl mb-2">✨</div>
@@ -371,7 +379,22 @@ import Layout from '../layouts/Layout.astro';
           <div id="detail-meta" class="text-[11px] text-fg-muted mt-0.5 truncate"></div>
         </div>
         <div class="flex items-center gap-1">
-          <button id="detail-delete" aria-label="Delete task" class="btn-ghost !p-2 text-fg-dim hover:text-status-failed">
+          <button id="detail-pin" aria-label="Pin task" class="btn-ghost !p-2 text-fg-dim hover:text-accent" title="Pin">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+          </button>
+          <button id="detail-cancel" aria-label="Cancel running" class="btn-ghost !p-2 text-fg-dim hover:text-status-failed hidden" title="Cancel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          </button>
+          <button id="detail-edit" aria-label="Edit pending" class="btn-ghost !p-2 text-fg-dim hover:text-accent hidden" title="Edit">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button id="detail-retry" aria-label="Retry" class="btn-ghost !p-2 text-fg-dim hover:text-accent hidden" title="Retry / Re-run">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          </button>
+          <button id="detail-copy" aria-label="Copy result" class="btn-ghost !p-2 text-fg-dim hover:text-accent" title="Copy result">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button id="detail-delete" aria-label="Delete task" class="btn-ghost !p-2 text-fg-dim hover:text-status-failed" title="Delete">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           </button>
           <button id="detail-close" aria-label="Close" class="btn-ghost !p-2 !text-xl">×</button>
@@ -389,6 +412,10 @@ import Layout from '../layouts/Layout.astro';
         <div id="detail-error-wrap" class="hidden">
           <h3 class="text-[10px] uppercase tracking-wider text-status-failed mb-1">Error</h3>
           <pre id="detail-error" class="text-xs font-mono whitespace-pre-wrap bg-bg-elevated rounded-md p-3 border border-status-failed/40"></pre>
+        </div>
+        <div id="detail-thread-wrap" class="hidden border-t border-border pt-4">
+          <h3 class="text-[10px] uppercase tracking-wider text-fg-muted mb-2">Thread (same chat)</h3>
+          <ul id="detail-thread" class="space-y-1.5 text-xs"></ul>
         </div>
         <div class="border-t border-border pt-4">
           <h3 class="text-[10px] uppercase tracking-wider text-fg-muted mb-1.5">Reply / Continue</h3>

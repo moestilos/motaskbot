@@ -386,4 +386,37 @@ html[data-theme="dracula"] {
     @apply chip pr-2 cursor-pointer;
     background-image: none;
   }
+
+  /* Status filter chips for tasks feed */
+  .status-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-fg-muted bg-bg-elevated border border-transparent transition-all duration-150 flex-shrink-0;
+    min-height: 32px;
+  }
+  .status-chip:active { transform: scale(0.96); }
+  .status-chip.active {
+    @apply text-fg bg-bg-raised border-accent/40;
+    box-shadow: 0 0 0 1px rgb(var(--color-accent) / 0.3);
+  }
+  .chip-count {
+    @apply text-[10px] text-fg-dim bg-bg-raised px-1.5 py-0.5 rounded-full min-w-[18px] text-center;
+  }
+  .status-chip.active .chip-count {
+    @apply bg-accent/20 text-accent;
+  }
+
+  /* Date group headers in feed */
+  .date-group {
+    @apply text-[10px] uppercase tracking-widest text-fg-dim font-semibold px-4 md:px-6 pt-4 pb-1 sticky top-0 bg-bg/80 backdrop-blur-sm z-[1];
+  }
+
+  /* Pinned task indicator */
+  .pin-star {
+    @apply absolute top-2 left-2 text-accent text-sm opacity-0 transition-opacity;
+  }
+  .pinned .pin-star { opacity: 1; }
+
+  /* Task quick-action button (retry/duplicate/cancel) */
+  .task-action {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-bg-elevated text-fg-muted hover:text-accent active:scale-95 transition-all;
+  }
 }

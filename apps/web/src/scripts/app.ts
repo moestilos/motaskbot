@@ -15,6 +15,8 @@ interface Target {
   working_dir?: string | null;
 }
 
+type SortBy = 'newest' | 'oldest' | 'cost' | 'duration';
+
 const state = {
   projects: [] as Project[],
   chats: [] as Chat[],
@@ -27,7 +29,41 @@ const state = {
   theme: 'dark' as string,
   filterChat: '' as string,
   filterStatus: '' as string,
+  sortBy: 'newest' as SortBy,
+  pinnedIds: new Set<string>(JSON.parse(localStorage.getItem('motaskbot-pinned') || '[]')),
 };
+
+function savePinned() {
+  localStorage.setItem('motaskbot-pinned', JSON.stringify(Array.from(state.pinnedIds)));
+}
+function togglePin(id: string) {
+  if (state.pinnedIds.has(id)) state.pinnedIds.delete(id);
+  else state.pinnedIds.add(id);
+  savePinned();
+}
+
+function dateGroupLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const dayMs = 86_400_000;
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const tday = d.getTime();
+  if (tday >= today0) return 'Today';
+  if (tday >= today0 - dayMs) return 'Yesterday';
+  if (tday >= today0 - 7 * dayMs) return 'This week';
+  if (tday >= today0 - 30 * dayMs) return 'This month';
+  return 'Earlier';
+}
+
+function elapsed(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -69,73 +105,193 @@ function renderTasksFilterOptions() {
   if (prev && chats.some((c) => c.id === prev)) sel.value = prev;
 }
 
+function updateStatusChipCounts() {
+  const pool = state.tasks
+    .filter((t) => (t as any).kind !== 'chat')
+    .filter((t) => !state.filterChat || t.chat_id === state.filterChat);
+  const counts: Record<string, number> = {
+    '': pool.length,
+    running: pool.filter((t) => t.status === 'running').length,
+    failed: pool.filter((t) => t.status === 'failed').length,
+    pending: pool.filter((t) => t.status === 'pending').length,
+    completed: pool.filter((t) => t.status === 'completed').length,
+  };
+  document.querySelectorAll<HTMLElement>('[data-status-count]').forEach((el) => {
+    const k = el.dataset.statusCount ?? '';
+    el.textContent = counts[k] === undefined ? '' : String(counts[k]);
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-status-chip]').forEach((btn) => {
+    btn.classList.toggle('active', (btn.dataset.statusChip ?? '') === state.filterStatus);
+  });
+}
+
+function taskCardHtml(t: Task): string {
+  const chat = state.chats.find((c) => c.id === t.chat_id);
+  const project = chat ? state.projects.find((p) => p.id === chat.project_id) : null;
+  const preview = t.result
+    ? t.result.slice(0, 180).replace(/\s+/g, ' ')
+    : t.instructions.slice(0, 180).replace(/\s+/g, ' ');
+  const projectBit = project ? `<span class="truncate">${escapeHtml(project.name)}</span>` : '';
+  const chatBit = chat?.claude_session_id ? `<span class="text-accent">⎋</span>` : '';
+  const pinned = state.pinnedIds.has(t.id);
+  const tokens = ((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0);
+  const cost = Number((t as any).total_cost_usd ?? 0);
+  const elapsedLabel =
+    t.status === 'running'
+      ? `<span class="text-status-running" data-elapsed="${t.created_at}">⏱ ${elapsed(t.created_at)}</span><span>·</span>`
+      : '';
+
+  // Quick actions per status
+  const actions: string[] = [];
+  if (t.status === 'running') {
+    actions.push(`<button data-cancel-id="${t.id}" class="task-action" aria-label="Cancel" title="Cancel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+    </button>`);
+  }
+  if (t.status === 'failed') {
+    actions.push(`<button data-retry-id="${t.id}" class="task-action" aria-label="Retry" title="Retry">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </button>`);
+  }
+  if (t.status === 'completed') {
+    actions.push(`<button data-dupe-id="${t.id}" class="task-action" aria-label="Duplicate" title="Re-run">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>`);
+  }
+  if (t.status === 'completed' || t.status === 'failed') {
+    actions.push(`<button data-del-id="${t.id}" class="task-action hover:!text-status-failed" aria-label="Delete" title="Delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+    </button>`);
+  }
+
+  return `
+    <li class="relative ${pinned ? 'pinned' : ''}">
+      <span class="pin-star" aria-hidden="true">★</span>
+      <button data-id="${t.id}" class="task-item w-full text-left card px-4 py-3 active:bg-bg-elevated transition-colors">
+        <div class="flex items-start gap-3">
+          <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
+          <div class="flex-1 min-w-0 pr-2">
+            <div class="flex items-baseline justify-between gap-2">
+              <div class="text-sm font-medium truncate">${escapeHtml(t.title)}</div>
+              <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(t.updated_at)}</div>
+            </div>
+            <div class="text-xs text-fg-muted line-clamp-2 mt-0.5">${escapeHtml(preview)}</div>
+            <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5 flex-wrap">
+              ${elapsedLabel}
+              <span class="uppercase tracking-wide">${t.status}</span>
+              ${projectBit ? '<span>·</span>' + projectBit : ''}
+              ${chatBit}
+              ${(t as any).model ? `<span>·</span><span class="text-fg-muted">${escapeHtml((t as any).model)}</span>` : ''}
+              ${tokens ? `<span>·</span><span>${fmtNum(tokens)} tok</span>` : ''}
+              ${cost > 0 ? `<span>·</span><span>$${cost.toFixed(4)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </button>
+      ${actions.length > 0
+        ? `<div class="absolute top-2 right-2 flex items-center gap-1">${actions.join('')}</div>`
+        : ''}
+    </li>`;
+}
+
+function applySort(tasks: Task[]): Task[] {
+  const arr = [...tasks];
+  switch (state.sortBy) {
+    case 'oldest':
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      break;
+    case 'cost':
+      arr.sort((a, b) => Number((b as any).total_cost_usd ?? 0) - Number((a as any).total_cost_usd ?? 0));
+      break;
+    case 'duration':
+      arr.sort((a, b) => Number((b as any).duration_ms ?? 0) - Number((a as any).duration_ms ?? 0));
+      break;
+    case 'newest':
+    default:
+      arr.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }
+  return arr;
+}
+
 function renderTasks() {
   renderTasksFilterOptions();
+  updateStatusChipCounts();
   const ul = $('tasks-feed');
   const empty = $('tasks-empty');
   const q = state.searchQuery.toLowerCase();
-  const tasks = state.tasks
+  const filtered = state.tasks
     .filter((t) => (t as any).kind !== 'chat')
     .filter((t) => !state.filterChat || t.chat_id === state.filterChat)
     .filter((t) => !state.filterStatus || t.status === state.filterStatus)
     .filter((t) => {
       if (!q) return true;
       return (t.title + ' ' + t.instructions + ' ' + (t.result ?? '')).toLowerCase().includes(q);
-    })
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    });
 
-  if (tasks.length === 0) {
+  if (filtered.length === 0) {
     ul.classList.add('hidden');
     empty.classList.remove('hidden');
+    // Customize empty text when filter active
+    const anyFilter = state.filterChat || state.filterStatus || q;
+    if (anyFilter) {
+      empty.innerHTML = `
+        <div class="text-4xl mb-2">🔍</div>
+        <div>No tasks match these filters.</div>
+        <button id="clear-filters-btn" class="text-accent text-xs mt-2 underline">Clear filters</button>
+      `;
+      $('clear-filters-btn')?.addEventListener('click', () => {
+        state.filterChat = '';
+        state.filterStatus = '';
+        state.searchQuery = '';
+        ($('tasks-filter-chat') as HTMLSelectElement).value = '';
+        if ($('search-input')) ($('search-input') as HTMLInputElement).value = '';
+        renderTasks();
+      });
+    } else {
+      empty.innerHTML = `
+        <div class="text-4xl mb-2">✨</div>
+        <div>No tasks yet.</div>
+        <div class="text-[11px]">Tap <span class="text-accent">+</span> to send one to Claude.</div>
+      `;
+    }
     return;
   }
   empty.classList.add('hidden');
   ul.classList.remove('hidden');
 
-  ul.innerHTML = tasks
-    .map((t) => {
-      const chat = state.chats.find((c) => c.id === t.chat_id);
-      const project = chat ? state.projects.find((p) => p.id === chat.project_id) : null;
-      const preview = t.result
-        ? t.result.slice(0, 180).replace(/\s+/g, ' ')
-        : t.instructions.slice(0, 180).replace(/\s+/g, ' ');
-      const projectBit = project ? `<span class="truncate">${escapeHtml(project.name)}</span>` : '';
-      const chatBit = chat?.claude_session_id
-        ? `<span class="text-accent">⎋</span>`
-        : '';
-      const deletable = t.status === 'completed' || t.status === 'failed';
-      return `
-      <li class="relative">
-        <button data-id="${t.id}" class="task-item w-full text-left card px-4 py-3 active:bg-bg-elevated transition-colors">
-          <div class="flex items-start gap-3">
-            <span class="status-dot status-${t.status} mt-1.5 flex-shrink-0"></span>
-            <div class="flex-1 min-w-0 pr-8">
-              <div class="flex items-baseline justify-between gap-2">
-                <div class="text-sm font-medium truncate">${escapeHtml(t.title)}</div>
-                <div class="text-[11px] text-fg-dim flex-shrink-0">${relDate(t.updated_at)}</div>
-              </div>
-              <div class="text-xs text-fg-muted line-clamp-2 mt-0.5">${escapeHtml(preview)}</div>
-              <div class="text-[11px] text-fg-dim mt-1.5 flex items-center gap-1.5 flex-wrap">
-                <span class="uppercase tracking-wide">${t.status}</span>
-                ${projectBit ? '<span>·</span>' + projectBit : ''}
-                ${chatBit}
-                ${(t as any).model ? `<span>·</span><span class="text-fg-muted">${escapeHtml((t as any).model)}</span>` : ''}
-                ${(t as any).input_tokens ? `<span>·</span><span>${fmtNum(((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0))} tok</span>` : ''}
-              </div>
-            </div>
-          </div>
-        </button>
-        ${deletable ? `<button data-del-id="${t.id}" aria-label="Delete task" class="task-del absolute top-2 right-2 btn-ghost !p-2 text-fg-dim hover:text-status-failed">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-        </button>` : ''}
-      </li>`;
-    })
-    .join('');
+  // Pinned first, then sorted
+  const pinned = filtered.filter((t) => state.pinnedIds.has(t.id));
+  const rest = filtered.filter((t) => !state.pinnedIds.has(t.id));
+  const sortedRest = applySort(rest);
+  const sortedPinned = applySort(pinned);
+
+  let html = '';
+  if (sortedPinned.length > 0) {
+    html += `<li class="date-group">★ Pinned</li>`;
+    html += sortedPinned.map(taskCardHtml).join('');
+  }
+
+  // Group rest by date bucket (only if sort=newest/oldest, otherwise no headers)
+  if (state.sortBy === 'newest' || state.sortBy === 'oldest') {
+    let lastGroup = '';
+    for (const t of sortedRest) {
+      const g = dateGroupLabel(t.created_at);
+      if (g !== lastGroup) {
+        html += `<li class="date-group">${g}</li>`;
+        lastGroup = g;
+      }
+      html += taskCardHtml(t);
+    }
+  } else {
+    html += sortedRest.map(taskCardHtml).join('');
+  }
+
+  ul.innerHTML = html;
 
   ul.querySelectorAll<HTMLButtonElement>('.task-item').forEach((btn) => {
     btn.addEventListener('click', () => openDetail(btn.dataset.id!));
   });
-  ul.querySelectorAll<HTMLButtonElement>('.task-del').forEach((btn) => {
+  ul.querySelectorAll<HTMLButtonElement>('[data-del-id]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.delId!;
@@ -144,7 +300,86 @@ function renderTasks() {
       if (error) alert(error.message);
     });
   });
+  ul.querySelectorAll<HTMLButtonElement>('[data-retry-id]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      retryTask(btn.dataset.retryId!);
+    });
+  });
+  ul.querySelectorAll<HTMLButtonElement>('[data-dupe-id]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicateTask(btn.dataset.dupeId!);
+    });
+  });
+  ul.querySelectorAll<HTMLButtonElement>('[data-cancel-id]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cancelTask(btn.dataset.cancelId!);
+    });
+  });
 }
+
+// Tick live elapsed counters every 2s
+setInterval(() => {
+  if (state.tab !== 'tasks') return;
+  document.querySelectorAll<HTMLElement>('[data-elapsed]').forEach((el) => {
+    const iso = el.dataset.elapsed!;
+    el.textContent = `⏱ ${elapsed(iso)}`;
+  });
+}, 2000);
+
+// ---------- Task actions ----------
+async function retryTask(id: string) {
+  const t = state.tasks.find((x) => x.id === id);
+  if (!t) return;
+  const { error } = await sb.from('tasks').insert({
+    project_id: t.project_id,
+    chat_id: t.chat_id,
+    title: t.title,
+    instructions: t.instructions,
+    model: (t as any).model,
+    kind: (t as any).kind,
+  } as any);
+  if (error) alert(error.message);
+}
+
+async function duplicateTask(id: string) {
+  await retryTask(id);
+}
+
+async function cancelTask(id: string) {
+  if (!confirm('Cancel this running task?')) return;
+  const { error } = await sb
+    .from('tasks')
+    .update({ status: 'failed', error: 'Cancelled by user' } as any)
+    .eq('id', id);
+  if (error) alert(error.message);
+}
+
+async function editPendingTask(id: string, newInstructions: string) {
+  const { error } = await sb
+    .from('tasks')
+    .update({ instructions: newInstructions, title: newInstructions.split('\n')[0].slice(0, 80) } as any)
+    .eq('id', id)
+    .eq('status', 'pending');
+  if (error) alert(error.message);
+}
+
+// Auto-cancel stuck tasks: running > 15min → mark failed
+async function sweepStuckTasks() {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  const stuck = state.tasks.filter(
+    (t) => t.status === 'running' && new Date(t.updated_at).getTime() < cutoff,
+  );
+  for (const t of stuck) {
+    await sb
+      .from('tasks')
+      .update({ status: 'failed', error: 'Timeout: running > 15min without updates' } as any)
+      .eq('id', t.id);
+  }
+}
+setInterval(sweepStuckTasks, 60_000);
 
 // ---------- Rendering: Projects feed ----------
 function renderProjects() {
@@ -751,7 +986,15 @@ function openDetail(taskId: string) {
   const t = state.tasks.find((x) => x.id === taskId);
   if (!t) return;
   $('detail-title').textContent = t.title;
-  $('detail-meta').textContent = `${t.status.toUpperCase()} · ${relDate(t.updated_at)}`;
+  const meta = [`${t.status.toUpperCase()}`, relDate(t.updated_at)];
+  if ((t as any).model) meta.push((t as any).model);
+  const tokens = ((t as any).input_tokens ?? 0) + ((t as any).output_tokens ?? 0);
+  if (tokens) meta.push(`${fmtNum(tokens)} tok`);
+  const cost = Number((t as any).total_cost_usd ?? 0);
+  if (cost > 0) meta.push(`$${cost.toFixed(4)}`);
+  const dur = Number((t as any).duration_ms ?? 0);
+  if (dur) meta.push(`${(dur / 1000).toFixed(1)}s`);
+  $('detail-meta').textContent = meta.join(' · ');
   $('detail-instructions').textContent = t.instructions;
   $('detail-result').textContent = t.result ?? '—';
   const errWrap = $('detail-error-wrap');
@@ -761,9 +1004,56 @@ function openDetail(taskId: string) {
   } else {
     errWrap.classList.add('hidden');
   }
+  // Toggle header action buttons per status
+  const cancelBtn = document.getElementById('detail-cancel');
+  const editBtn = document.getElementById('detail-edit');
+  const retryBtn = document.getElementById('detail-retry');
+  cancelBtn?.classList.toggle('hidden', t.status !== 'running');
+  editBtn?.classList.toggle('hidden', t.status !== 'pending');
+  retryBtn?.classList.toggle('hidden', t.status !== 'failed' && t.status !== 'completed');
+  // Pin icon state
+  const pinBtn = document.getElementById('detail-pin');
+  if (pinBtn) {
+    const pinned = state.pinnedIds.has(t.id);
+    pinBtn.classList.toggle('text-accent', pinned);
+    pinBtn.classList.toggle('text-fg-dim', !pinned);
+    pinBtn.setAttribute('title', pinned ? 'Unpin' : 'Pin');
+  }
+  // Thread: other tasks in same chat
+  renderDetailThread(t);
   ($('detail-reply') as HTMLTextAreaElement).value = '';
   $('detail-modal').classList.remove('hidden');
   $('detail-modal').dataset.taskId = taskId;
+}
+
+function renderDetailThread(current: Task) {
+  const wrap = document.getElementById('detail-thread-wrap');
+  const list = document.getElementById('detail-thread');
+  if (!wrap || !list) return;
+  const thread = state.tasks
+    .filter((t) => t.chat_id === current.chat_id && t.id !== current.id)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
+  if (thread.length === 0) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  list.innerHTML = thread
+    .map(
+      (t) => `
+      <li>
+        <button data-thread-id="${t.id}" class="thread-link w-full text-left px-2 py-1.5 rounded-md hover:bg-bg-elevated active:bg-bg-elevated flex items-center gap-2">
+          <span class="status-dot status-${t.status} flex-shrink-0"></span>
+          <span class="flex-1 truncate text-xs">${escapeHtml(t.title)}</span>
+          <span class="text-[10px] text-fg-dim flex-shrink-0">${relDate(t.created_at)}</span>
+        </button>
+      </li>`,
+    )
+    .join('');
+  list.querySelectorAll<HTMLButtonElement>('.thread-link').forEach((btn) => {
+    btn.addEventListener('click', () => openDetail(btn.dataset.threadId!));
+  });
 }
 
 // ---------- Load + Realtime ----------
@@ -938,14 +1228,65 @@ $('detail-delete')?.addEventListener('click', async () => {
   if (error) return alert(error.message);
   $('detail-modal').classList.add('hidden');
 });
+$('detail-pin')?.addEventListener('click', () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  togglePin(id);
+  const t = state.tasks.find((x) => x.id === id);
+  if (t) openDetail(id);
+  renderTasks();
+});
+$('detail-retry')?.addEventListener('click', async () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  await retryTask(id);
+  $('detail-modal').classList.add('hidden');
+});
+$('detail-cancel')?.addEventListener('click', async () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  await cancelTask(id);
+});
+$('detail-edit')?.addEventListener('click', async () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  const t = state.tasks.find((x) => x.id === id);
+  if (!t) return;
+  const next = prompt('Edit prompt (only while pending):', t.instructions);
+  if (next === null || next.trim() === '') return;
+  await editPendingTask(id, next.trim());
+});
+$('detail-copy')?.addEventListener('click', async () => {
+  const id = $('detail-modal').dataset.taskId;
+  if (!id) return;
+  const t = state.tasks.find((x) => x.id === id);
+  if (!t?.result) return alert('No result to copy.');
+  try {
+    await navigator.clipboard.writeText(t.result);
+    const btn = document.getElementById('detail-copy');
+    if (btn) {
+      const original = btn.innerHTML;
+      btn.innerHTML = '✓';
+      setTimeout(() => (btn.innerHTML = original), 1200);
+    }
+  } catch {
+    alert('Clipboard API unavailable.');
+  }
+});
 
 $('tasks-filter-chat')?.addEventListener('change', (e) => {
   state.filterChat = (e.target as HTMLSelectElement).value;
   renderTasks();
 });
-$('tasks-filter-status')?.addEventListener('change', (e) => {
-  state.filterStatus = (e.target as HTMLSelectElement).value;
+$('tasks-sort')?.addEventListener('change', (e) => {
+  state.sortBy = (e.target as HTMLSelectElement).value as SortBy;
   renderTasks();
+});
+document.querySelectorAll<HTMLButtonElement>('[data-status-chip]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    state.filterStatus = btn.dataset.statusChip ?? '';
+    renderTasks();
+  });
 });
 $('tasks-clear-completed')?.addEventListener('click', async () => {
   const visible = state.tasks
