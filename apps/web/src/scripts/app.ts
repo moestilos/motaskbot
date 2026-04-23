@@ -796,6 +796,9 @@ function fmtNum(n: number): string {
 function openTaskModal() {
   ($('task-title') as HTMLInputElement).value = '';
   ($('task-instructions') as HTMLTextAreaElement).value = '';
+  // Restore last skill choice (sticky per device)
+  const skillSel = $('task-skill') as HTMLSelectElement | null;
+  if (skillSel) skillSel.value = localStorage.getItem('motaskbot-last-skill') || '';
   applyTarget();
   $('task-modal').classList.remove('hidden');
   setTimeout(() => ($('task-instructions') as HTMLTextAreaElement).focus(), 100);
@@ -928,14 +931,23 @@ function renderTargetList() {
 }
 
 // ---------- Submit task ----------
+// Map of skill id → trigger prefix injected before user prompt
+const SKILL_PREFIXES: Record<string, string> = {
+  'ui-ux-pro-max': 'Use the ui-ux-pro-max skill from ~/.claude/skills/ to guide design decisions. Apply its reasoning engine (patterns, styles, palettes, typography, anti-patterns, pre-delivery checklist).\n\n',
+};
+
 async function submitTask() {
-  const instructions = ($('task-instructions') as HTMLTextAreaElement).value.trim();
-  if (!instructions) return alert('Write a prompt first.');
+  const rawInstructions = ($('task-instructions') as HTMLTextAreaElement).value.trim();
+  if (!rawInstructions) return alert('Write a prompt first.');
   if (!state.target) return alert('Pick a target (session or project).');
+
+  const skillId = ($('task-skill') as HTMLSelectElement | null)?.value || '';
+  const prefix = skillId && SKILL_PREFIXES[skillId] ? SKILL_PREFIXES[skillId] : '';
+  const instructions = prefix + rawInstructions;
 
   let title = ($('task-title') as HTMLInputElement).value.trim();
   if (!title) {
-    title = instructions.split('\n')[0].slice(0, 80).trim() || 'Untitled task';
+    title = rawInstructions.split('\n')[0].slice(0, 80).trim() || 'Untitled task';
   }
 
   let chat_id = state.target.chat_id;
@@ -1260,6 +1272,20 @@ $('chat-input')?.addEventListener('keydown', (e: any) => {
   }
 });
 $('desktop-new-task')?.addEventListener('click', openTaskModal);
+
+// Persist last skill choice
+$('task-skill')?.addEventListener('change', (e) => {
+  localStorage.setItem('motaskbot-last-skill', (e.target as HTMLSelectElement).value);
+});
+
+// Skill info popup
+$('task-skill-info')?.addEventListener('click', () => {
+  alert(
+    'Skills are installed in ~/.claude/skills/ on your PC where the worker runs.\n\n' +
+    'Selecting one prepends a trigger line to your prompt so Claude auto-loads it.\n\n' +
+    'Add more: install additional skills via `uipro` or `/plugin install`, then add them to SKILL_PREFIXES in app.ts.'
+  );
+});
 $('task-close').addEventListener('click', closeTaskModal);
 $('task-create').addEventListener('click', submitTask);
 $('task-modal').addEventListener('click', (e) => {
