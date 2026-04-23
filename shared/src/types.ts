@@ -22,6 +22,7 @@ export interface Chat {
   context: ChatContextMessage[];
   working_dir: string | null;
   claude_session_id: string | null;
+  auto_push: boolean;
   created_at: string;
 }
 

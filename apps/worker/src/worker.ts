@@ -9,6 +9,7 @@ import type { Task, Chat, ChatContextMessage } from '@motaskbot/shared/types';
 import { executeTaskWithClaude } from './claude.js';
 import { startSessionScanner } from './sessionScanner.js';
 import { pickVerifyCommand, runVerify } from './verify.js';
+import { autoPushIfDirty } from './autoPush.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('worker');
@@ -162,13 +163,32 @@ async function processTask(taskId: string) {
       }
     }
 
+    // ---- Auto-push: commit + push if chat has auto_push flag set ----
+    let pushLog = '';
+    const AUTO_PUSH_GLOBAL = process.env.AUTO_PUSH === '1';
+    const chatAutoPush = (chat as any).auto_push === true;
+    if (!isChat && chat.working_dir && (chatAutoPush || AUTO_PUSH_GLOBAL)) {
+      const pushRes = await autoPushIfDirty(chat.working_dir, task.title, task.id);
+      if (pushRes.pushed) {
+        pushLog = `\n\n[auto-push] commit ${pushRes.commit} pushed`;
+        log.info(`auto-push ok: ${pushRes.commit}`);
+      } else if (pushRes.error) {
+        pushLog = `\n\n[auto-push] failed: ${pushRes.error}`;
+        log.warn(`auto-push failed: ${pushRes.error}`);
+      } else if (pushRes.skipped) {
+        pushLog = `\n\n[auto-push] skipped: ${pushRes.skipped}`;
+        log.info(`auto-push skipped: ${pushRes.skipped}`);
+      }
+    }
+
     const now = new Date().toISOString();
+    const finalOutput = output + healLog + pushLog;
     const newContext: ChatContextMessage[] = [
       ...(chat.context ?? []),
       { role: 'user', content: `[Task: ${task.title}]\n${task.instructions}`, task_id: task.id, at: now },
-      { role: 'assistant', content: output + healLog, task_id: task.id, at: now },
+      { role: 'assistant', content: finalOutput, task_id: task.id, at: now },
     ];
-    await completeTask(task, output + healLog, newContext, sessionId, chat.claude_session_id, {
+    await completeTask(task, finalOutput, newContext, sessionId, chat.claude_session_id, {
       inputTokens, outputTokens, totalCostUsd, durationMs,
     });
     log.info(`✓ completed task ${task.id}${sessionId ? ` (session ${sessionId.slice(0, 8)})` : ''}`);

@@ -815,6 +815,23 @@ function applyTarget() {
     label.textContent = 'Choose a session or project';
     sub.textContent = 'Tap to pick';
   }
+  // Show auto-push toggle only if target has a working_dir (git repo possible)
+  const row = document.getElementById('auto-push-row');
+  const input = document.getElementById('task-auto-push') as HTMLInputElement | null;
+  if (row && input) {
+    const hasDir = !!state.target?.working_dir;
+    row.classList.toggle('hidden', !hasDir);
+    if (hasDir) {
+      // Pre-fill from existing chat's current auto_push flag
+      const chat = state.chats.find(
+        (c) =>
+          (state.target!.chat_id && c.id === state.target!.chat_id) ||
+          (state.target!.session_id && c.claude_session_id === state.target!.session_id) ||
+          (state.target!.project_id && c.project_id === state.target!.project_id),
+      );
+      input.checked = !!(chat as any)?.auto_push;
+    }
+  }
 }
 
 // ---------- Target picker modal ----------
@@ -976,6 +993,16 @@ async function submitTask() {
   }
 
   if (!chat_id || !project_id) return alert('Could not resolve target.');
+
+  // Persist auto-push flag on chat if toggle visible + has working_dir
+  const autoPushInput = document.getElementById('task-auto-push') as HTMLInputElement | null;
+  if (autoPushInput && state.target?.working_dir) {
+    const desired = autoPushInput.checked;
+    const current = state.chats.find((c) => c.id === chat_id);
+    if (current && (current as any).auto_push !== desired) {
+      await sb.from('chats').update({ auto_push: desired } as any).eq('id', chat_id);
+    }
+  }
 
   const model = ($('task-model') as HTMLSelectElement)?.value || 'haiku';
   const { error } = await sb.from('tasks').insert({ project_id, chat_id, title, instructions, model } as any);

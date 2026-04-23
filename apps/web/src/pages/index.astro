@@ -356,6 +356,21 @@ import Layout from '../layouts/Layout.astro';
           <label class="text-xs text-fg-muted mb-1.5 block">Prompt</label>
           <textarea id="task-instructions" class="textarea min-h-[120px] md:min-h-[160px]" placeholder="What should Claude do?"></textarea>
         </div>
+
+        <!-- Auto-push toggle (only for sessions/projects with working_dir) -->
+        <div id="auto-push-row" class="hidden flex items-center justify-between gap-3 p-3 rounded-lg bg-bg-elevated/60 border border-border/60">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/></svg>
+              Auto-push to git
+            </div>
+            <div class="text-[11px] text-fg-muted mt-0.5">Commit + push changes after task finishes</div>
+          </div>
+          <label class="toggle">
+            <input id="task-auto-push" type="checkbox" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="px-4 md:px-5 py-3 border-t border-border sticky bottom-0 bg-bg-raised pb-[env(safe-area-inset-bottom)]">
